@@ -21,6 +21,26 @@ import { tasks } from "@/data/tasks";
 
 type ViewMode = "board" | "list";
 
+function getListGridTemplate(visibleFields: {
+  priority: boolean;
+  members: boolean;
+  dueDate: boolean;
+  labels: boolean;
+  status: boolean;
+  reporter: boolean;
+}) {
+  const fieldColumns: string[] = [];
+
+  if (visibleFields.priority) fieldColumns.push("110px");
+  if (visibleFields.members) fieldColumns.push("150px");
+  if (visibleFields.dueDate) fieldColumns.push("130px");
+  if (visibleFields.labels) fieldColumns.push("150px");
+  if (visibleFields.status) fieldColumns.push("110px");
+  if (visibleFields.reporter) fieldColumns.push("130px");
+
+  return `minmax(250px,1fr) ${fieldColumns.join(" ")} 50px`;
+}
+
 const columns = [
   {
     title: "To Do",
@@ -685,150 +705,155 @@ export default function TasksPage() {
 
                         {/* Table Header */}
                         <div
-                          className="
-                            grid
-                            grid-cols-[minmax(250px,1fr)_110px_150px_130px_50px]
-                            items-center
-                            bg-[#F8F8F8]
-                            border-b border-[#E5E5E5]
-                            px-3
-                            py-2
-                          "
+                          className="grid items-center bg-[#F8F8F8] border-b border-[#E5E5E5] px-3 py-2"
+                          style={{
+                            gridTemplateColumns:
+                              getListGridTemplate(visibleFields),
+                          }}
                         >
-
                           <span className="text-[9px] font-medium text-[#555555]">
                             Task
                           </span>
 
-                          <span className="text-[9px] font-medium text-[#555555]">
-                            Priority
-                          </span>
+                          {visibleFields.priority && (
+                            <span className="text-[9px] font-medium text-[#555555]">
+                              Priority
+                            </span>
+                          )}
 
-                          <span className="text-[9px] font-medium text-[#555555]">
-                            Members
-                          </span>
+                          {visibleFields.members && (
+                            <span className="text-[9px] font-medium text-[#555555]">
+                              Members
+                            </span>
+                          )}
 
-                          <span className="text-[9px] font-medium text-[#555555]">
-                            Due Date
-                          </span>
+                          {visibleFields.dueDate && (
+                            <span className="text-[9px] font-medium text-[#555555]">
+                              Due Date
+                            </span>
+                          )}
+
+                          {visibleFields.labels && (
+                            <span className="text-[9px] font-medium text-[#555555]">
+                              Labels
+                            </span>
+                          )}
+
+                          {visibleFields.status && (
+                            <span className="text-[9px] font-medium text-[#555555]">
+                              Status
+                            </span>
+                          )}
+
+                          {visibleFields.reporter && (
+                            <span className="text-[9px] font-medium text-[#555555]">
+                              Reporter
+                            </span>
+                          )}
 
                           <span className="text-[9px] font-medium text-[#555555] text-center">
                             Actions
                           </span>
-
                         </div>
 
                         {/* Task Rows */}
                         {columnTasks.map((task) => (
-
                           <Link
                             key={task.id}
                             href={`/tasks/${task.id}`}
-                            className="
-                              grid
-                              grid-cols-[minmax(250px,1fr)_110px_150px_130px_50px]
-                              items-center
-                              min-h-[38px]
-                              px-3
-                              border-b
-                              last:border-b-0
-                              border-[#E5E5E5]
-                              hover:bg-[#FAFAFA]
-                              transition-colors
-                            "
+                            className="grid items-center min-h-[38px] px-3 border-b last:border-b-0 border-[#E5E5E5] hover:bg-[#FAFAFA] transition-colors"
+                            style={{
+                              gridTemplateColumns:
+                                getListGridTemplate(visibleFields),
+                            }}
                           >
-
                             {/* Task */}
                             <div className="min-w-0">
-
-                              <span
-                                className="
-                                  block
-                                  truncate
-                                  text-[9px]
-                                  font-medium
-                                  text-[#222222]
-                                "
-                              >
+                              <span className="block truncate text-[9px] font-medium text-[#222222]">
                                 {task.title}
                               </span>
-
                             </div>
 
                             {/* Priority */}
-                            <div>
-                              <PriorityValue
-                                priority={task.priority}
-                              />
-                            </div>
+                            {visibleFields.priority && (
+                              <div>
+                                <PriorityValue priority={task.priority} />
+                              </div>
+                            )}
 
                             {/* Members */}
-                            <div className="flex items-center gap-2">
+                            {visibleFields.members && (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
+                                  <UserRound
+                                    size={9}
+                                    className="text-white"
+                                  />
+                                </div>
 
-                              <div
-                                className="
-                                  w-5 h-5
-                                  rounded-full
-                                  bg-purple-500
-                                  flex
-                                  items-center
-                                  justify-center
-                                  shrink-0
-                                "
-                              >
-                                <UserRound
-                                  size={9}
-                                  className="text-white"
-                                />
+                                <span className="text-[9px] text-[#555555] truncate">
+                                  {task.member}
+                                </span>
                               </div>
-
-                              <span className="text-[9px] text-[#555555] truncate">
-                                {task.member}
-                              </span>
-
-                            </div>
+                            )}
 
                             {/* Due Date */}
-                            <div>
+                            {visibleFields.dueDate && (
+                              <div>
+                                <span className="inline-flex items-center gap-1 text-[9px] text-[#555555]">
+                                  <CalendarDays
+                                    size={10}
+                                    strokeWidth={1.7}
+                                  />
+                                  {task.dueDate}
+                                </span>
+                              </div>
+                            )}
 
-                              <span
-                                className="
-                                  inline-flex
-                                  items-center
-                                  gap-1
-                                  text-[9px]
-                                  text-[#555555]
-                                "
-                              >
-                                <CalendarDays
-                                  size={10}
-                                  strokeWidth={1.7}
-                                />
+                            {/* Labels */}
+                            {visibleFields.labels && (
+                              <div className="flex flex-wrap gap-1 min-w-0">
+                                {task.labels.map((label) => (
+                                  <span
+                                    key={label}
+                                    className="border border-[#E5E5E5] rounded-full px-1.5 py-0.5 text-[7px] text-[#555555] truncate"
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
 
-                                {task.dueDate}
-                              </span>
+                            {/* Status */}
+                            {visibleFields.status && (
+                              <div>
+                                <span className="text-[9px] text-[#555555]">
+                                  {task.status}
+                                </span>
+                              </div>
+                            )}
 
-                            </div>
+                            {/* Reporter */}
+                            {visibleFields.reporter && (
+                              <div>
+                                <span className="text-[9px] text-[#555555] truncate">
+                                  {task.member}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Actions */}
                             <div className="flex justify-center">
-
                               <button
                                 type="button"
                                 onClick={(event) =>
                                   event.preventDefault()
                                 }
-                                className="
-                                  text-[10px]
-                                  text-[#888888]
-                                  hover:text-[#222222]
-                                "
+                                className="text-[10px] text-[#888888] hover:text-[#222222]"
                               >
                                 •••
                               </button>
-
                             </div>
-
                           </Link>
                         ))}
 
