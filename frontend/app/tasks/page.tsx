@@ -56,6 +56,39 @@ export default function TasksPage() {
 
   const [search, setSearch] = useState("");
 
+  // Keep task cards synced with saved edits from the task details page.
+  const [taskList, setTaskList] = useState(tasks);
+
+  useEffect(() => {
+    const loadSavedTasks = () => {
+      const stored = localStorage.getItem("ablespace-tasks");
+
+      if (!stored) {
+        setTaskList(tasks);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setTaskList(parsed);
+        }
+      } catch {
+        setTaskList(tasks);
+      }
+    };
+
+    loadSavedTasks();
+
+    window.addEventListener("ablespace-tasks-updated", loadSavedTasks);
+    window.addEventListener("storage", loadSavedTasks);
+
+    return () => {
+      window.removeEventListener("ablespace-tasks-updated", loadSavedTasks);
+      window.removeEventListener("storage", loadSavedTasks);
+    };
+  }, []);
+
   // Fields dropdown
   const [fieldsOpen, setFieldsOpen] = useState(false);
 
@@ -104,10 +137,10 @@ export default function TasksPage() {
     const searchText = search.toLowerCase().trim();
 
     if (!searchText) {
-      return tasks;
+      return taskList;
     }
 
-    return tasks.filter((task) => {
+    return taskList.filter((task) => {
       return (
         task.title.toLowerCase().includes(searchText) ||
         task.member.toLowerCase().includes(searchText) ||
@@ -116,7 +149,7 @@ export default function TasksPage() {
         )
       );
     });
-  }, [search]);
+  }, [search, taskList]);
 
   const toggleField = (
     field: keyof typeof visibleFields
