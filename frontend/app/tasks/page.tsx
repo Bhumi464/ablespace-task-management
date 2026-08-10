@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
   ChevronDown,
+  ChevronRight,
   Filter,
   Columns2,
   List,
@@ -13,6 +14,7 @@ import {
   UserRound,
   LayoutGrid,
   PanelLeft,
+  Check,
 } from "lucide-react";
 
 import { tasks } from "@/data/tasks";
@@ -39,8 +41,64 @@ const columns = [
 ];
 
 export default function TasksPage() {
-  const [view, setView] = useState<ViewMode>("board");
+  // Remember the last selected view
+  const [view, setView] = useState<ViewMode>(() => {
+    if (typeof window !== "undefined") {
+      const savedView = sessionStorage.getItem("taskView");
+
+      if (savedView === "list" || savedView === "board") {
+        return savedView;
+      }
+    }
+
+    return "board";
+  });
+
   const [search, setSearch] = useState("");
+
+  // Fields dropdown
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+
+  // List sections
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    "To Do": true,
+    Doing: true,
+    Completed: true,
+    "On Hold": true,
+  });
+
+  const [visibleFields, setVisibleFields] = useState({
+    priority: false,
+    members: true,
+    dueDate: true,
+    labels: true,
+    status: false,
+    reporter: false,
+  });
+
+  // Save selected view
+  useEffect(() => {
+    sessionStorage.setItem("taskView", view);
+  }, [view]);
+
+  // Close Fields dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      if (!target.closest("[data-fields-menu]")) {
+        setFieldsOpen(false);
+      }
+    };
+
+    if (fieldsOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [fieldsOpen]);
 
   const filteredTasks = useMemo(() => {
     const searchText = search.toLowerCase().trim();
@@ -60,11 +118,28 @@ export default function TasksPage() {
     });
   }, [search]);
 
+  const toggleField = (
+    field: keyof typeof visibleFields
+  ) => {
+    setVisibleFields((previous) => ({
+      ...previous,
+      [field]: !previous[field],
+    }));
+  };
+
+  const toggleSection = (status: string) => {
+    setOpenSections((previous) => ({
+      ...previous,
+      [status]: !previous[status],
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="flex min-h-screen">
 
         {/* ================= SIDEBAR ================= */}
+
         <aside className="w-[155px] shrink-0 border-r border-[#E5E5E5] bg-white">
 
           {/* Dexter */}
@@ -80,6 +155,7 @@ export default function TasksPage() {
               <span className="text-[11px] font-semibold text-[#111111]">
                 Dexter
               </span>
+
             </div>
 
             <ChevronDown
@@ -87,6 +163,7 @@ export default function TasksPage() {
               strokeWidth={1.5}
               className="text-[#555555]"
             />
+
           </div>
 
           {/* Navigation */}
@@ -94,6 +171,7 @@ export default function TasksPage() {
 
             {/* Workspace */}
             <div className="flex items-center justify-between px-1 mb-2">
+
               <p className="text-[9px] font-medium text-[#777777]">
                 Workspace
               </p>
@@ -103,6 +181,7 @@ export default function TasksPage() {
                 strokeWidth={1.5}
                 className="text-[#333333]"
               />
+
             </div>
 
             <nav className="space-y-1">
@@ -140,24 +219,27 @@ export default function TasksPage() {
         </aside>
 
         {/* ================= MAIN ================= */}
+
         <main className="flex-1 min-w-0">
 
           {/* ================= TOP BAR ================= */}
+
           <div className="h-[40px] border-b border-[#E5E5E5] flex items-center px-4">
 
             <button
-  type="button"
-  className="w-6 h-6 flex items-center justify-center text-[#333333]"
->
-  <PanelLeft
-    size={13}
-    strokeWidth={1.7}
-  />
-</button>
+              type="button"
+              className="w-6 h-6 flex items-center justify-center text-[#333333]"
+            >
+              <PanelLeft
+                size={13}
+                strokeWidth={1.7}
+              />
+            </button>
 
           </div>
 
           {/* ================= TASKS HEADER ================= */}
+
           <header className="h-[52px] border-b border-[#E5E5E5] flex items-center justify-between px-5 bg-white">
 
             {/* Title */}
@@ -166,71 +248,267 @@ export default function TasksPage() {
             </h1>
 
             {/* Controls */}
-            <div className="flex items-center gap-1.5">
+            <div
+              className="flex items-center gap-1.5 relative"
+              data-fields-menu
+            >
 
               {/* Search */}
               <button
                 type="button"
-                className="w-7 h-7 border border-[#E5E5E5] rounded-md flex items-center justify-center text-[#444444] hover:bg-gray-50"
+                className="
+                  w-7 h-7
+                  border border-[#E5E5E5]
+                  rounded-md
+                  flex items-center justify-center
+                  text-[#444444]
+                  bg-white
+                  hover:bg-[#E8E8E8]
+                  hover:border-[#CFCFCF]
+                  hover:text-black
+                  transition-all duration-150
+                "
               >
                 <Search
                   size={13}
-                  strokeWidth={1.7}
+                  strokeWidth={1.8}
                 />
               </button>
 
               {/* Fields */}
               <button
                 type="button"
-                className="h-7 px-2.5 border border-[#E5E5E5] rounded-md text-[10px] font-medium text-[#333333] flex items-center gap-1.5 hover:bg-gray-50"
+                onClick={() =>
+                  setFieldsOpen((previous) => !previous)
+                }
+                className="
+                  h-7 px-2.5
+                  border border-[#E5E5E5]
+                  rounded-md
+                  text-[10px]
+                  font-medium
+                  text-[#333333]
+                  bg-white
+                  flex items-center gap-1.5
+                  hover:bg-[#E8E8E8]
+                  hover:border-[#CFCFCF]
+                  hover:text-black
+                  transition-all duration-150
+                "
               >
                 <Columns2
                   size={12}
-                  strokeWidth={1.7}
+                  strokeWidth={1.8}
                 />
 
                 <span>Fields</span>
               </button>
 
+              {/* ================= FIELDS DROPDOWN ================= */}
+
+              {fieldsOpen && (
+                <div
+                  className="
+                    absolute
+                    right-[58px]
+                    top-[34px]
+                    z-50
+                    w-[180px]
+                    rounded-md
+                    border border-[#E5E5E5]
+                    bg-white
+                    shadow-[0_4px_12px_rgba(0,0,0,0.08)]
+                  "
+                >
+
+                  {/* View Toggle */}
+                  <div className="flex h-[32px] border-b border-[#E5E5E5] p-1">
+
+                    {/* List */}
+                    <button
+                      type="button"
+                      onClick={() => setView("list")}
+                      className={`
+                        flex-1
+                        rounded-[4px]
+                        flex
+                        items-center
+                        justify-center
+                        gap-1.5
+                        text-[9px]
+                        font-medium
+                        ${
+                          view === "list"
+                            ? "bg-[#F3F3F3] text-[#111111]"
+                            : "text-[#666666] hover:bg-[#F8F8F8]"
+                        }
+                      `}
+                    >
+                      <List
+                        size={11}
+                        strokeWidth={1.8}
+                      />
+
+                      <span>List</span>
+                    </button>
+
+                    {/* Board */}
+                    <button
+                      type="button"
+                      onClick={() => setView("board")}
+                      className={`
+                        flex-1
+                        rounded-[4px]
+                        flex
+                        items-center
+                        justify-center
+                        gap-1.5
+                        text-[9px]
+                        font-medium
+                        ${
+                          view === "board"
+                            ? "bg-[#F3F3F3] text-[#111111]"
+                            : "text-[#666666] hover:bg-[#F8F8F8]"
+                        }
+                      `}
+                    >
+                      <LayoutGrid
+                        size={11}
+                        strokeWidth={1.8}
+                      />
+
+                      <span>Board</span>
+                    </button>
+
+                  </div>
+
+                  {/* Fields */}
+                  <div className="py-1.5">
+
+                    <FieldOption
+                      label="Priority"
+                      checked={visibleFields.priority}
+                      onClick={() =>
+                        toggleField("priority")
+                      }
+                    />
+
+                    <FieldOption
+                      label="Members"
+                      checked={visibleFields.members}
+                      onClick={() =>
+                        toggleField("members")
+                      }
+                    />
+
+                    <FieldOption
+                      label="Due Date"
+                      checked={visibleFields.dueDate}
+                      onClick={() =>
+                        toggleField("dueDate")
+                      }
+                    />
+
+                    <FieldOption
+                      label="Labels"
+                      checked={visibleFields.labels}
+                      onClick={() =>
+                        toggleField("labels")
+                      }
+                    />
+
+                    <FieldOption
+                      label="Status"
+                      checked={visibleFields.status}
+                      onClick={() =>
+                        toggleField("status")
+                      }
+                    />
+
+                    <FieldOption
+                      label="Reporter"
+                      checked={visibleFields.reporter}
+                      onClick={() =>
+                        toggleField("reporter")
+                      }
+                    />
+
+                  </div>
+                </div>
+              )}
+
               {/* Filter */}
               <button
                 type="button"
-                className="w-7 h-7 border border-[#E5E5E5] rounded-md flex items-center justify-center text-[#444444] hover:bg-gray-50"
+                className="
+                  w-7 h-7
+                  border border-[#E5E5E5]
+                  rounded-md
+                  flex items-center justify-center
+                  text-[#444444]
+                  bg-white
+                  hover:bg-[#E8E8E8]
+                  hover:border-[#CFCFCF]
+                  hover:text-black
+                  transition-all duration-150
+                "
               >
                 <Filter
                   size={12}
-                  strokeWidth={1.7}
+                  strokeWidth={1.8}
                 />
               </button>
 
               {/* Add Task */}
               <button
                 type="button"
-                className="h-7 px-3 rounded-md bg-black text-white text-[10px] font-medium flex items-center gap-1.5 hover:bg-[#222222]"
+                className="
+                  h-7 px-3
+                  rounded-md
+                  bg-black
+                  text-white
+                  text-[10px]
+                  font-medium
+                  flex items-center gap-1.5
+                  hover:bg-[#333333]
+                  transition-all duration-150
+                "
               >
                 <Plus size={12} />
+
                 <span>Add Task</span>
               </button>
 
             </div>
           </header>
 
-          {/* ================= BOARD ================= */}
+          {/* ================= BOARD VIEW ================= */}
+
           {view === "board" && (
             <div className="w-full px-4 py-4">
 
-              {/* Full width board */}
               <div className="grid grid-cols-4 gap-2.5 w-full">
 
                 {columns.map((column) => {
-                  const columnTasks = filteredTasks.filter(
-                    (task) => task.status === column.status
-                  );
+
+                  const columnTasks =
+                    filteredTasks.filter(
+                      (task) =>
+                        task.status === column.status
+                    );
 
                   return (
                     <div
                       key={column.status}
-                      className="min-w-0 w-full bg-[#F8F8F8] border border-[#E5E5E5] rounded-lg p-2 min-h-[350px]"
+                      className="
+                        min-w-0
+                        w-full
+                        bg-[#F8F8F8]
+                        border border-[#E5E5E5]
+                        rounded-lg
+                        p-2
+                        min-h-[350px]
+                      "
                     >
 
                       {/* Column Header */}
@@ -275,6 +553,7 @@ export default function TasksPage() {
                           <TaskCard
                             key={task.id}
                             task={task}
+                            visibleFields={visibleFields}
                           />
                         ))}
 
@@ -283,7 +562,15 @@ export default function TasksPage() {
                       {/* Add Task */}
                       <button
                         type="button"
-                        className="w-full text-left text-[8px] text-[#555555] mt-2 px-1 hover:text-black"
+                        className="
+                          w-full
+                          text-left
+                          text-[8px]
+                          text-[#555555]
+                          mt-2
+                          px-1
+                          hover:text-black
+                        "
                       >
                         + Add Task
                       </button>
@@ -296,96 +583,254 @@ export default function TasksPage() {
             </div>
           )}
 
-          {/* ================= LIST ================= */}
+          {/* ================= LIST VIEW ================= */}
+
           {view === "list" && (
-            <div className="p-7">
+            <div className="w-full px-5 py-4">
 
               {columns.map((column) => {
-                const columnTasks = filteredTasks.filter(
-                  (task) => task.status === column.status
-                );
+
+                const columnTasks =
+                  filteredTasks.filter(
+                    (task) =>
+                      task.status === column.status
+                  );
+
+                const isOpen =
+                  openSections[column.status];
 
                 return (
                   <section
                     key={column.status}
-                    className="mb-7"
+                    className="mb-5"
                   >
 
-                    <div className="flex items-center gap-2 mb-2">
+                    {/* Section Header */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleSection(column.status)
+                      }
+                      className="
+                        flex
+                        items-center
+                        gap-1.5
+                        mb-2
+                        text-left
+                        hover:text-black
+                      "
+                    >
 
-                      <h2 className="text-[11px] font-semibold text-gray-900">
-                        {column.title}
-                      </h2>
-
-                      <span className="text-[10px] text-gray-400">
-                        {columnTasks.length}
-                      </span>
-
-                    </div>
-
-                    <div className="border border-[#E5E5E5] rounded-lg overflow-hidden">
-
-                      <div className="grid grid-cols-[1fr_130px_150px_130px_40px] bg-[#F8F8F8] border-b border-[#E5E5E5] px-4 py-2">
-
-                        <span className="text-[10px] text-gray-500">
-                          Task
-                        </span>
-
-                        <span className="text-[10px] text-gray-500">
-                          Priority
-                        </span>
-
-                        <span className="text-[10px] text-gray-500">
-                          Members
-                        </span>
-
-                        <span className="text-[10px] text-gray-500">
-                          Due Date
-                        </span>
-
-                        <span />
-
-                      </div>
-
-                      {columnTasks.map((task) => (
-                        <Link
-                          key={task.id}
-                          href={`/tasks/${task.id}`}
-                          className="grid grid-cols-[1fr_130px_150px_130px_40px] items-center px-4 py-3 border-b last:border-b-0 border-[#E5E5E5] hover:bg-gray-50"
-                        >
-
-                          <span className="text-[11px] text-gray-800">
-                            {task.title}
-                          </span>
-
-                          <span className="text-[11px] text-gray-600">
-                            {task.priority}
-                          </span>
-
-                          <span className="flex items-center gap-2 text-[11px] text-gray-600">
-                            <span className="w-5 h-5 rounded-full bg-purple-500" />
-                            {task.member}
-                          </span>
-
-                          <span className="flex items-center gap-1 text-[10px] text-gray-600">
-                            <CalendarDays size={12} />
-                            {task.dueDate}
-                          </span>
-
-                          <span className="text-gray-400">
-                            •••
-                          </span>
-
-                        </Link>
-                      ))}
-
-                      {columnTasks.length === 0 && (
-                        <div className="px-4 py-5 text-[11px] text-gray-400">
-                          No tasks found.
-                        </div>
+                      {isOpen ? (
+                        <ChevronDown
+                          size={11}
+                          strokeWidth={1.8}
+                        />
+                      ) : (
+                        <ChevronRight
+                          size={11}
+                          strokeWidth={1.8}
+                        />
                       )}
 
-                    </div>
+                      <span className="text-[10px] font-semibold text-[#111111]">
+                        {column.title}
+                      </span>
+
+                    </button>
+
+                    {isOpen && (
+                      <div
+                        className="
+                          w-full
+                          border border-[#E5E5E5]
+                          rounded-md
+                          overflow-hidden
+                          bg-white
+                        "
+                      >
+
+                        {/* Table Header */}
+                        <div
+                          className="
+                            grid
+                            grid-cols-[minmax(250px,1fr)_110px_150px_130px_50px]
+                            items-center
+                            bg-[#F8F8F8]
+                            border-b border-[#E5E5E5]
+                            px-3
+                            py-2
+                          "
+                        >
+
+                          <span className="text-[9px] font-medium text-[#555555]">
+                            Task
+                          </span>
+
+                          <span className="text-[9px] font-medium text-[#555555]">
+                            Priority
+                          </span>
+
+                          <span className="text-[9px] font-medium text-[#555555]">
+                            Members
+                          </span>
+
+                          <span className="text-[9px] font-medium text-[#555555]">
+                            Due Date
+                          </span>
+
+                          <span className="text-[9px] font-medium text-[#555555] text-center">
+                            Actions
+                          </span>
+
+                        </div>
+
+                        {/* Task Rows */}
+                        {columnTasks.map((task) => (
+
+                          <Link
+                            key={task.id}
+                            href={`/tasks/${task.id}`}
+                            className="
+                              grid
+                              grid-cols-[minmax(250px,1fr)_110px_150px_130px_50px]
+                              items-center
+                              min-h-[38px]
+                              px-3
+                              border-b
+                              last:border-b-0
+                              border-[#E5E5E5]
+                              hover:bg-[#FAFAFA]
+                              transition-colors
+                            "
+                          >
+
+                            {/* Task */}
+                            <div className="min-w-0">
+
+                              <span
+                                className="
+                                  block
+                                  truncate
+                                  text-[9px]
+                                  font-medium
+                                  text-[#222222]
+                                "
+                              >
+                                {task.title}
+                              </span>
+
+                            </div>
+
+                            {/* Priority */}
+                            <div>
+                              <PriorityValue
+                                priority={task.priority}
+                              />
+                            </div>
+
+                            {/* Members */}
+                            <div className="flex items-center gap-2">
+
+                              <div
+                                className="
+                                  w-5 h-5
+                                  rounded-full
+                                  bg-purple-500
+                                  flex
+                                  items-center
+                                  justify-center
+                                  shrink-0
+                                "
+                              >
+                                <UserRound
+                                  size={9}
+                                  className="text-white"
+                                />
+                              </div>
+
+                              <span className="text-[9px] text-[#555555] truncate">
+                                {task.member}
+                              </span>
+
+                            </div>
+
+                            {/* Due Date */}
+                            <div>
+
+                              <span
+                                className="
+                                  inline-flex
+                                  items-center
+                                  gap-1
+                                  text-[9px]
+                                  text-[#555555]
+                                "
+                              >
+                                <CalendarDays
+                                  size={10}
+                                  strokeWidth={1.7}
+                                />
+
+                                {task.dueDate}
+                              </span>
+
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-center">
+
+                              <button
+                                type="button"
+                                onClick={(event) =>
+                                  event.preventDefault()
+                                }
+                                className="
+                                  text-[10px]
+                                  text-[#888888]
+                                  hover:text-[#222222]
+                                "
+                              >
+                                •••
+                              </button>
+
+                            </div>
+
+                          </Link>
+                        ))}
+
+                        {/* Empty State */}
+                        {columnTasks.length === 0 && (
+                          <div className="px-3 py-4 text-[9px] text-[#999999]">
+                            No tasks found.
+                          </div>
+                        )}
+
+                        {/* Add Task */}
+                        <button
+                          type="button"
+                          className="
+                            flex
+                            items-center
+                            gap-1
+                            w-full
+                            px-3
+                            py-2
+                            text-left
+                            text-[9px]
+                            text-[#555555]
+                            hover:text-black
+                            hover:bg-[#FAFAFA]
+                          "
+                        >
+                          <Plus size={10} />
+
+                          <span>Add Task</span>
+                        </button>
+
+                      </div>
+                    )}
+
                   </section>
                 );
               })}
@@ -399,18 +844,126 @@ export default function TasksPage() {
   );
 }
 
+/* ================= FIELD OPTION ================= */
+
+function FieldOption({
+  label,
+  checked,
+  onClick,
+}: {
+  label: string;
+  checked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="
+        w-full
+        h-[29px]
+        px-3
+        flex
+        items-center
+        justify-between
+        text-left
+        hover:bg-[#F1F1F1]
+        transition-colors
+      "
+    >
+
+      <span className="text-[9px] text-[#333333]">
+        {label}
+      </span>
+
+      <span
+        className={`
+          w-[11px]
+          h-[11px]
+          rounded-[3px]
+          border
+          flex
+          items-center
+          justify-center
+          ${
+            checked
+              ? "bg-[#111111] border-[#111111]"
+              : "bg-white border-[#DCDCDC]"
+          }
+        `}
+      >
+        {checked && (
+          <Check
+            size={8}
+            strokeWidth={2.5}
+            className="text-white"
+          />
+        )}
+      </span>
+
+    </button>
+  );
+}
+
+/* ================= PRIORITY ================= */
+
+function PriorityValue({
+  priority,
+}: {
+  priority: string;
+}) {
+  let textClass = "text-[#777777]";
+
+  if (priority.toLowerCase() === "high") {
+    textClass = "text-[#FF4D4D]";
+  }
+
+  if (priority.toLowerCase() === "medium") {
+    textClass = "text-[#FF8A3D]";
+  }
+
+  if (priority.toLowerCase() === "low") {
+    textClass = "text-[#999999]";
+  }
+
+  return (
+    <span
+      className={`text-[9px] ${textClass}`}
+    >
+      {priority}
+    </span>
+  );
+}
 
 /* ================= TASK CARD ================= */
 
 function TaskCard({
   task,
+  visibleFields,
 }: {
   task: (typeof tasks)[number];
+  visibleFields: {
+    priority: boolean;
+    members: boolean;
+    dueDate: boolean;
+    labels: boolean;
+    status: boolean;
+    reporter: boolean;
+  };
 }) {
   return (
     <Link
       href={`/tasks/${task.id}`}
-      className="block w-full bg-white border border-[#DCDCDC] rounded-md p-2.5 hover:border-gray-300 transition"
+      className="
+        block
+        w-full
+        bg-white
+        border border-[#DCDCDC]
+        rounded-md
+        p-2.5
+        hover:border-gray-300
+        transition
+      "
     >
 
       {/* Title */}
@@ -422,7 +975,9 @@ function TaskCard({
 
         <button
           type="button"
-          onClick={(e) => e.preventDefault()}
+          onClick={(event) =>
+            event.preventDefault()
+          }
           className="text-[#888888] text-[8px] shrink-0"
         >
           •••
@@ -430,46 +985,121 @@ function TaskCard({
 
       </div>
 
+      {/* Status */}
+      {visibleFields.status && (
+        <div className="mt-2">
+          <span className="text-[8px] text-[#555555]">
+            Status: {task.status}
+          </span>
+        </div>
+      )}
+
+      {/* Priority */}
+      {visibleFields.priority && (
+        <div className="mt-2">
+          <span className="text-[8px] text-[#555555]">
+            Priority: {task.priority}
+          </span>
+        </div>
+      )}
+
       {/* Member + Date */}
-      <div className="flex items-center justify-between mt-2">
+      {(visibleFields.members ||
+        visibleFields.dueDate) && (
 
-        {/* Member */}
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center justify-between mt-2">
 
-          <div className="w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
-            <UserRound
-              size={8}
-              className="text-white"
-            />
-          </div>
+          {/* Member */}
+          {visibleFields.members && (
+            <div className="flex items-center gap-1.5 min-w-0">
 
-          <span className="text-[8px] text-[#555555] truncate">
-            {task.member}
+              <div
+                className="
+                  w-4 h-4
+                  rounded-full
+                  bg-purple-500
+                  flex
+                  items-center
+                  justify-center
+                  shrink-0
+                "
+              >
+                <UserRound
+                  size={8}
+                  className="text-white"
+                />
+              </div>
+
+              <span className="text-[8px] text-[#555555] truncate">
+                {task.member}
+              </span>
+
+            </div>
+          )}
+
+          {/* Date */}
+          {visibleFields.dueDate && (
+            <span
+              className="
+                inline-flex
+                items-center
+                gap-0.5
+                bg-red-50
+                text-red-500
+                rounded-full
+                px-1.5
+                py-0.5
+                text-[7px]
+                shrink-0
+                ml-2
+              "
+            >
+              <CalendarDays size={8} />
+
+              {task.dueDate}
+            </span>
+          )}
+
+        </div>
+      )}
+
+      {/* Labels */}
+      {visibleFields.labels &&
+        task.labels.length > 0 && (
+
+        <div className="flex flex-wrap gap-1 mt-2">
+
+          {task.labels.map((label) => (
+
+            <span
+              key={label}
+              className="
+                border border-[#E5E5E5]
+                rounded-full
+                px-1.5
+                py-0.5
+                text-[7px]
+                text-[#555555]
+              "
+            >
+              {label}
+            </span>
+
+          ))}
+
+        </div>
+      )}
+
+      {/* Reporter */}
+      {visibleFields.reporter && (
+        <div className="mt-2">
+
+          <span className="text-[8px] text-[#555555]">
+            Reporter: {task.member}
           </span>
 
         </div>
-
-        {/* Date */}
-        <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-500 rounded-full px-1.5 py-0.5 text-[7px] shrink-0 ml-2">
-          <CalendarDays size={8} />
-          {task.dueDate}
-        </span>
-
-      </div>
-
-      {/* Labels */}
-      <div className="flex flex-wrap gap-1 mt-2">
-
-        {task.labels.map((label) => (
-          <span
-            key={label}
-            className="border border-[#E5E5E5] rounded-full px-1.5 py-0.5 text-[7px] text-[#555555]"
-          >
-            {label}
-          </span>
-        ))}
-
-      </div>
+      )}
 
     </Link>
   );
