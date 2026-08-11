@@ -91,6 +91,28 @@ export default function TasksPage() {
     labels: "",
   });
 
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+useEffect(() => {
+  const savedTheme = localStorage.getItem("ablespace-theme");
+
+  if (savedTheme === "dark") {
+    setTheme("dark");
+    document.documentElement.classList.add("dark");
+  }
+}, []);
+
+const changeTheme = (newTheme: "light" | "dark") => {
+  setTheme(newTheme);
+  localStorage.setItem("ablespace-theme", newTheme);
+
+  if (newTheme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+};
+
   useEffect(() => {
     const loadSavedTasks = () => {
       const stored = localStorage.getItem("ablespace-tasks");
@@ -126,6 +148,30 @@ export default function TasksPage() {
 
   // Filter dropdown
   const [showFilter, setShowFilter] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+const [themeOpen, setThemeOpen] = useState(false);
+
+const profileRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as Node;
+
+    if (
+      profileRef.current &&
+      !profileRef.current.contains(target)
+    ) {
+      setProfileOpen(false);
+      setThemeOpen(false);
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
   const [priorityFilter, setPriorityFilter] = useState("All");
 
   const filterRef = useRef<HTMLDivElement>(null);
@@ -305,29 +351,201 @@ export default function TasksPage() {
 
         <aside className="w-[155px] shrink-0 border-r border-[#E5E5E5] bg-white">
 
-          {/* Dexter */}
-          <div className="h-[55px] px-4 flex items-center justify-between border-b border-[#E5E5E5]">
-            <div className="flex items-center gap-2">
+          {/* Dexter Profile */}
+<div
+  ref={profileRef}
+  className="relative h-[55px] border-b border-[#E5E5E5]"
+>
+  <button
+    type="button"
+    onClick={() => {
+      setProfileOpen((previous) => !previous);
+      setThemeOpen(false);
+    }}
+    className="
+      w-full
+      h-full
+      px-4
+      flex
+      items-center
+      justify-between
+      hover:bg-[#F8F8F8]
+      transition-colors
+    "
+  >
+    <div className="flex items-center gap-2">
+      <div className="w-[21px] h-[21px] rounded-full bg-purple-500 flex items-center justify-center">
+        <span className="text-[8px] font-medium text-white">
+          D
+        </span>
+      </div>
 
-              <div className="w-[21px] h-[21px] rounded-full bg-purple-500 flex items-center justify-center">
-                <span className="text-[8px] font-medium text-white">
-                  D
-                </span>
-              </div>
+      <span className="text-[11px] font-semibold text-[#111111]">
+        Dexter
+      </span>
+    </div>
 
-              <span className="text-[11px] font-semibold text-[#111111]">
-                Dexter
-              </span>
+    <ChevronDown
+      size={11}
+      strokeWidth={1.5}
+      className={`text-[#555555] transition-transform ${
+        profileOpen ? "rotate-180" : ""
+      }`}
+    />
+  </button>
 
+  {profileOpen && (
+    <div
+      className="
+        absolute
+        left-[6px]
+        top-[58px]
+        z-[100]
+        w-[145px]
+        rounded-md
+        border
+        border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.08)]
+        py-1.5
+      "
+    >
+      {/* Change Theme */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setThemeOpen((previous) => !previous)}
+          className="
+            w-full
+            h-[30px]
+            px-3
+            flex
+            items-center
+            justify-between
+            text-left
+            text-[9px]
+            text-[#333333]
+            hover:bg-[#F5F5F5]
+          "
+        >
+          <span className="flex items-center gap-2">
+            ☼
+            <span>Change Theme</span>
+          </span>
+
+          <span className="text-[10px]">›</span>
+        </button>
+
+        {/* Theme submenu */}
+        {themeOpen && (
+          <div
+            className="
+              absolute
+              left-[142px]
+              top-0
+              w-[100px]
+              rounded-md
+              border
+              border-[#E5E5E5]
+              bg-white
+              shadow-[0_4px_12px_rgba(0,0,0,0.08)]
+              py-1.5
+            "
+          >
+            <div className="px-3 py-1 text-[8px] text-[#999999]">
+              Theme
             </div>
 
-            <ChevronDown
-              size={11}
-              strokeWidth={1.5}
-              className="text-[#555555]"
-            />
+            <button
+  type="button"
+  onClick={() => changeTheme("light")}
+  className="
+    w-full
+    h-[28px]
+    px-3
+    flex
+    items-center
+    justify-between
+    text-[9px]
+    text-[#333333]
+    hover:bg-[#F5F5F5]
+  "
+>
+  <span>☼ Light</span>
 
+  {theme === "light" && <span>✓</span>}
+</button>
+
+            <button
+  type="button"
+  onClick={() => changeTheme("dark")}
+  className="
+    w-full
+    h-[28px]
+    px-3
+    flex
+    items-center
+    justify-between
+    text-left
+    text-[9px]
+    text-[#333333]
+    hover:bg-[#F5F5F5]
+  "
+>
+  <span>☾ Dark</span>
+
+  {theme === "dark" && <span>✓</span>}
+</button>
           </div>
+        )}
+      </div>
+
+      {/* Color Mode */}
+      <button
+        type="button"
+        className="
+          w-full
+          h-[30px]
+          px-3
+          flex
+          items-center
+          justify-between
+          text-left
+          text-[9px]
+          text-[#333333]
+          hover:bg-[#F5F5F5]
+        "
+      >
+        <span className="flex items-center gap-2">
+          ■
+          <span>Color Mode</span>
+        </span>
+
+        <span className="text-[10px]">›</span>
+      </button>
+
+      {/* Settings */}
+      <button
+        type="button"
+        className="
+          w-full
+          h-[30px]
+          px-3
+          flex
+          items-center
+          gap-2
+          text-left
+          text-[9px]
+          text-[#333333]
+          hover:bg-[#F5F5F5]
+        "
+      >
+        ⚙
+        <span>Settings</span>
+      </button>
+    </div>
+  )}
+</div>
 
           {/* Navigation */}
           <div className="px-3 pt-4">

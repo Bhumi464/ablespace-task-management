@@ -13,6 +13,9 @@ import {
     Search,
     UserRound,
     X,
+    Sun,
+    Moon,
+    Settings,
 } from "lucide-react";
 
 type Project = {
@@ -67,33 +70,69 @@ export default function ProjectsPage() {
         dueDate: "",
     });
 
-    const filterRef = useRef<HTMLDivElement>(null);
+    const [profileOpen, setProfileOpen] = useState(false);
+const [themeOpen, setThemeOpen] = useState(false);
+const [theme, setTheme] = useState<"Light" | "Dark">("Light");
+useEffect(() => {
+    const savedTheme = localStorage.getItem("ablespace-theme");
 
+    if (savedTheme === "Dark") {
+        setTheme("Dark");
+        document.documentElement.classList.add("dark");
+    }
+}, []);
+
+    const filterRef = useRef<HTMLDivElement>(null);
+const profileRef = useRef<HTMLDivElement>(null);
+
+const changeTheme = (newTheme: "Light" | "Dark") => {
+    setTheme(newTheme);
+
+    localStorage.setItem("ablespace-theme", newTheme);
+
+    if (newTheme === "Dark") {
+        document.documentElement.classList.add("dark");
+    } else {
+        document.documentElement.classList.remove("dark");
+    }
+
+    setThemeOpen(false);
+};
     /* --------------------------------
        Close dropdowns when clicking outside
     -------------------------------- */
 
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as Node;
+    const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as Node;
 
-            if (
-                filterRef.current &&
-                !filterRef.current.contains(target)
-            ) {
-                setShowFilter(false);
-            }
-        };
+        // Close filter when clicking outside
+        if (
+            filterRef.current &&
+            !filterRef.current.contains(target)
+        ) {
+            setShowFilter(false);
+        }
 
-        document.addEventListener("mousedown", handleClickOutside);
+        // Close Dexter menu when clicking outside
+        if (
+            profileRef.current &&
+            !profileRef.current.contains(target)
+        ) {
+            setProfileOpen(false);
+            setThemeOpen(false);
+        }
+    };
 
-        return () => {
-            document.removeEventListener(
-                "mousedown",
-                handleClickOutside
-            );
-        };
-    }, []);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+        document.removeEventListener(
+            "mousedown",
+            handleClickOutside
+        );
+    };
+}, []);
 
     /* --------------------------------
        Search + filter
@@ -197,31 +236,239 @@ export default function ProjectsPage() {
 
                 <aside className="w-[155px] shrink-0 border-r border-[#E5E5E5] bg-white">
 
-                    {/* Dexter */}
+                    {/* Dexter Profile */}
+<div
+    ref={profileRef}
+    className="relative h-[55px] px-4 flex items-center border-b border-[#E5E5E5]"
+>
+    <button
+        type="button"
+        onClick={(event) => {
+            event.stopPropagation();
 
-                    <div className="h-[55px] px-4 flex items-center justify-between border-b border-[#E5E5E5]">
+            setProfileOpen((prev) => !prev);
+            setThemeOpen(false);
+        }}
+        className="
+            w-full
+            flex
+            items-center
+            justify-between
+            rounded-md
+            px-1
+            py-1
+            cursor-pointer
+            hover:bg-[#F5F5F5]
+        "
+    >
+        <div className="flex items-center gap-2">
+            <div className="w-[21px] h-[21px] rounded-full bg-purple-500 flex items-center justify-center">
+                <span className="text-[8px] font-medium text-white">
+                    D
+                </span>
+            </div>
 
-                        <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-[#111111]">
+                Dexter
+            </span>
+        </div>
 
-                            <div className="w-[21px] h-[21px] rounded-full bg-purple-500 flex items-center justify-center">
-                                <span className="text-[8px] font-medium text-white">
-                                    D
-                                </span>
-                            </div>
+        <ChevronDown
+            size={11}
+            strokeWidth={1.5}
+            className="text-[#555555]"
+        />
+    </button>
 
-                            <span className="text-[11px] font-semibold text-[#111111]">
-                                Dexter
-                            </span>
-
-                        </div>
-
-                        <ChevronDown
-                            size={11}
-                            strokeWidth={1.5}
-                            className="text-[#555555]"
-                        />
-
+    {profileOpen && (
+        <div
+            className="
+                absolute
+                left-[6px]
+                top-[50px]
+                z-[9999]
+                w-[144px]
+                rounded-md
+                border
+                border-[#E5E5E5]
+                bg-white
+                shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+            "
+        >
+            {/* Profile */}
+            <div className="px-3 py-3">
+                <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+                        <span className="text-[12px] font-medium text-white">
+                            D
+                        </span>
                     </div>
+
+                    <p className="text-[10px] font-medium text-[#111111] mt-1">
+                        Dexter
+                    </p>
+
+                    <p className="text-[8px] text-[#777777]">
+                        Dexter@gmail.com
+                    </p>
+                </div>
+            </div>
+
+            <div className="border-t border-[#EEEEEE]" />
+
+            {/* Change Theme */}
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setThemeOpen((prev) => !prev);
+                    }}
+                    className="
+                        w-full
+                        h-[32px]
+                        px-3
+                        flex
+                        items-center
+                        justify-between
+                        text-[9px]
+                        text-[#333333]
+                        hover:bg-[#F5F5F5]
+                        cursor-pointer
+                    "
+                >
+                    <span className="flex items-center gap-2">
+                        <Sun size={11} />
+                        Change Theme
+                    </span>
+
+                    <span>›</span>
+                </button>
+
+                {/* Theme submenu */}
+                {themeOpen && (
+                    <div
+                        className="
+                            absolute
+                            left-[140px]
+                            top-0
+                            z-[10000]
+                            w-[105px]
+                            rounded-md
+                            border
+                            border-[#E5E5E5]
+                            bg-white
+                            shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+                            py-1
+                        "
+                    >
+                        <p className="px-3 py-1 text-[8px] text-[#777777]">
+                            Theme
+                        </p>
+
+                        <button
+    type="button"
+    onClick={() => changeTheme("Light")}
+    className="
+        w-full
+        px-3
+        py-1.5
+        flex
+        items-center
+        justify-between
+        text-[9px]
+        text-[#333333]
+        hover:bg-[#F5F5F5]
+        cursor-pointer
+    "
+>
+    <span className="flex items-center gap-2">
+        <Sun size={10} />
+        Light
+    </span>
+
+    {theme === "Light" && (
+        <span>✓</span>
+    )}
+</button>
+
+                        <button
+    type="button"
+    onClick={() => changeTheme("Dark")}
+    className="
+        w-full
+        px-3
+        py-1.5
+        flex
+        items-center
+        justify-between
+        text-[9px]
+        text-[#333333]
+        hover:bg-[#F5F5F5]
+        cursor-pointer
+    "
+>
+    <span className="flex items-center gap-2">
+        <Moon size={10} />
+        Dark
+    </span>
+
+    {theme === "Dark" && (
+        <span>✓</span>
+    )}
+</button>
+                    </div>
+                )}
+            </div>
+
+            {/* Color Mode */}
+            <button
+                type="button"
+                className="
+                    w-full
+                    h-[32px]
+                    px-3
+                    flex
+                    items-center
+                    justify-between
+                    text-[9px]
+                    text-[#333333]
+                    hover:bg-[#F5F5F5]
+                    cursor-pointer
+                "
+            >
+                <span>
+                    ■&nbsp;&nbsp;Color Mode
+                </span>
+
+                <span>›</span>
+            </button>
+
+            {/* Settings */}
+            <button
+                type="button"
+                onClick={() => {
+                    window.location.href = "/settings";
+                }}
+                className="
+                    w-full
+                    h-[32px]
+                    px-3
+                    flex
+                    items-center
+                    gap-2
+                    text-[9px]
+                    text-[#333333]
+                    hover:bg-[#F5F5F5]
+                    cursor-pointer
+                "
+            >
+                <Settings size={11} />
+                Settings
+            </button>
+        </div>
+    )}
+</div>
 
                     {/* Workspace */}
 
@@ -386,6 +633,7 @@ export default function ProjectsPage() {
                                 ref={filterRef}
                                 className="relative"
                             >
+                                
 
                                 <button
                                     type="button"

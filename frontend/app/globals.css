@@ -24,3 +24,99 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ================= DARK MODE ================= */
+
+html.dark {
+  background: #171717;
+}
+
+html.dark body {
+  background: #171717;
+  color: #f5f5f5;
+}
+
+/* Main white areas */
+html.dark .bg-white {
+  background-color: #171717 !important;
+}
+
+/* Light gray backgrounds */
+html.dark .bg-\[\#F8F8F8\] {
+  background-color: #222222 !important;
+}
+
+html.dark .bg-\[\#F2F2F2\] {
+  background-color: #2a2a2a !important;
+}
+
+html.dark .bg-\[\#F3F3F3\] {
+  background-color: #2a2a2a !important;
+}
+
+/* Borders */
+html.dark .border-\[\#E5E5E5\] {
+  border-color: #3a3a3a !important;
+}
+
+html.dark .border-\[\#DCDCDC\] {
+  border-color: #444444 !important;
+}
+
+/* Main text */
+html.dark .text-\[\#111111\] {
+  color: #f5f5f5 !important;
+}
+
+html.dark .text-\[\#222222\] {
+  color: #eeeeee !important;
+}
+
+html.dark .text-\[\#333333\] {
+  color: #dddddd !important;
+}
+
+html.dark .text-\[\#555555\] {
+  color: #bbbbbb !important;
+}
+
+html.dark .text-\[\#777777\] {
+  color: #999999 !important;
+}
+
+/* Hover */
+html.dark .hover\:bg-\[\#F5F5F5\]:hover {
+  background-color: #2a2a2a !important;
+}
+
+html.dark .hover\:bg-\[\#F7F7F7\]:hover {
+  background-color: #2a2a2a !important;
+}
+
+html.dark .hover\:bg-\[\#F8F8F8\]:hover {
+  background-color: #2a2a2a !important;
+}
+
+html.dark .hover\:bg-\[\#FAFAFA\]:hover {
+  background-color: #2a2a2a !important;
+}
+
+/* Inputs and selects */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #222222 !important;
+  color: #f5f5f5 !important;
+  border-color: #444444 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #888888 !important;
+}
+
+/* Dropdowns */
+html.dark .shadow-lg,
+html.dark .shadow-xl {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+}
