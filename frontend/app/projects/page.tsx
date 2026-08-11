@@ -28,6 +28,7 @@ type Project = {
     dueDate: string;
 };
 const THEME_KEY = "ablespace-theme";
+const PROJECTS_KEY = "ablespace-projects";
 const initialProjects: Project[] = [
     {
         id: 1,
@@ -54,6 +55,23 @@ const initialProjects: Project[] = [
 
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>(initialProjects);
+
+useEffect(() => {
+    const savedProjects = localStorage.getItem(PROJECTS_KEY);
+
+    if (savedProjects) {
+        try {
+            setProjects(JSON.parse(savedProjects));
+        } catch {
+            setProjects(initialProjects);
+        }
+    } else {
+        localStorage.setItem(
+            PROJECTS_KEY,
+            JSON.stringify(initialProjects)
+        );
+    }
+}, []);
 const [leadFilter, setLeadFilter] = useState("All");
 const [dueDateFilter, setDueDateFilter] = useState("All");
     const [search, setSearch] = useState("");
@@ -346,52 +364,77 @@ setColorModeOpen(false);
        Add project
     -------------------------------- */
 
-    const saveProject = () => {
-        if (!newProject.name.trim()) {
-            return;
-        }
+   const saveProject = () => {
+    if (!newProject.name.trim()) {
+        return;
+    }
 
-        if (editingProjectId !== null) {
-            setProjects((current) =>
-                current.map((project) =>
-                    project.id === editingProjectId
-                        ? {
-                            ...project,
-                            name: newProject.name.trim(),
-                            priority: newProject.priority,
-                            lead: newProject.lead,
-                            dueDate:
-                                newProject.dueDate || project.dueDate,
-                        }
-                        : project
-                )
+    if (editingProjectId !== null) {
+        setProjects((current) => {
+            const updatedProjects = current.map((project) =>
+                project.id === editingProjectId
+                    ? {
+                          ...project,
+                          name: newProject.name.trim(),
+                          priority: newProject.priority,
+                          lead: newProject.lead,
+                          dueDate:
+                              newProject.dueDate ||
+                              project.dueDate,
+                      }
+                    : project
             );
-        } else {
-            const project: Project = {
-                id: Date.now(),
-                name: newProject.name.trim(),
-                priority: newProject.priority,
-                lead: newProject.lead,
-                dueDate:
-                    newProject.dueDate || "18 Sep 2026",
-            };
 
-            setProjects((current) => [
+            localStorage.setItem(
+                PROJECTS_KEY,
+                JSON.stringify(updatedProjects)
+            );
+
+            window.dispatchEvent(
+                new Event("ablespace-projects-updated")
+            );
+
+            return updatedProjects;
+        });
+    } else {
+        const project: Project = {
+            id: Date.now(),
+            name: newProject.name.trim(),
+            priority: newProject.priority,
+            lead: newProject.lead,
+            dueDate:
+                newProject.dueDate || "18 Sep 2026",
+        };
+
+        setProjects((current) => {
+            const updatedProjects = [
                 ...current,
                 project,
-            ]);
-        }
+            ];
 
-        setNewProject({
-            name: "",
-            priority: "High",
-            lead: "Admin",
-            dueDate: "",
+            localStorage.setItem(
+                PROJECTS_KEY,
+                JSON.stringify(updatedProjects)
+            );
+
+            window.dispatchEvent(
+                new Event("ablespace-projects-updated")
+            );
+
+            return updatedProjects;
         });
+    }
 
-        setEditingProjectId(null);
-        setShowAddProject(false);
-    };
+    setNewProject({
+        name: "",
+        priority: "High",
+        lead: "Admin",
+        dueDate: "",
+    });
+
+    setEditingProjectId(null);
+    setShowAddProject(false);
+};
 
     const handleEditProject = (project: Project) => {
         setNewProject({
@@ -404,11 +447,24 @@ setColorModeOpen(false);
         setShowAddProject(true);
     };
 
-    const handleDeleteProject = (projectId: number) => {
-        setProjects((current) =>
-            current.filter((project) => project.id !== projectId)
+   const handleDeleteProject = (projectId: number) => {
+    setProjects((current) => {
+        const updatedProjects = current.filter(
+            (project) => project.id !== projectId
         );
-    };
+
+        localStorage.setItem(
+            PROJECTS_KEY,
+            JSON.stringify(updatedProjects)
+        );
+
+        window.dispatchEvent(
+            new Event("ablespace-projects-updated")
+        );
+
+        return updatedProjects;
+    });
+};
 
     return (
         <div className="min-h-screen bg-white text-gray-900">
@@ -1064,7 +1120,7 @@ setColorModeOpen(false);
 
                     <div className="w-full px-4 py-4">
 
-                        <div className="w-full border border-[#E5E5E5] rounded-lg overflow-hidden bg-white">
+                        <div className="w-full border border-[#E5E5E5] rounded-lg overflow-visible bg-white">
 
                             {/* Table Header */}
 
@@ -1112,6 +1168,7 @@ setColorModeOpen(false);
                                         className="
                       grid
                       grid-cols-[minmax(250px,1fr)_110px_150px_130px_50px]
+                      relative
                       items-center
                       min-h-[42px]
                       px-3
@@ -1123,9 +1180,12 @@ setColorModeOpen(false);
 
                                         {/* Project */}
 
-                                        <span className="text-[10px] font-medium text-[#222222] truncate">
-                                            {project.name}
-                                        </span>
+                                        <Link
+    href={`/projects/${project.id}`}
+    className="text-[10px] font-medium text-[#222222] truncate hover:underline"
+>
+    {project.name}
+</Link>
 
                                         {/* Priority */}
 
@@ -1653,7 +1713,7 @@ function ProjectActions({
             absolute
             right-0
             top-6
-            z-50
+            z-[9999]
             w-[110px]
             rounded-md
             border border-[#E5E5E5]
