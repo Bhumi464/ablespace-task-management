@@ -25,7 +25,7 @@ type Project = {
     lead: string;
     dueDate: string;
 };
-
+const THEME_KEY = "ablespace-theme";
 const initialProjects: Project[] = [
     {
         id: 1,
@@ -72,32 +72,70 @@ export default function ProjectsPage() {
 
     const [profileOpen, setProfileOpen] = useState(false);
 const [themeOpen, setThemeOpen] = useState(false);
-const [theme, setTheme] = useState<"Light" | "Dark">("Light");
-useEffect(() => {
-    const savedTheme = localStorage.getItem("ablespace-theme");
+    const [theme, setTheme] = useState<"light" | "dark">("light");
 
-    if (savedTheme === "Dark") {
-        setTheme("Dark");
-        document.documentElement.classList.add("dark");
-    }
-}, []);
+    useEffect(() => {
+        const applyTheme = (savedTheme: string | null) => {
+            const nextTheme: "light" | "dark" =
+                savedTheme === "dark" ? "dark" : "light";
+
+            setTheme(nextTheme);
+
+            if (nextTheme === "dark") {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
+        };
+
+        applyTheme(localStorage.getItem(THEME_KEY));
+
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === THEME_KEY) {
+                applyTheme(event.newValue);
+            }
+        };
+
+        const handleThemeUpdated = (event: Event) => {
+            const customEvent = event as CustomEvent<"light" | "dark">;
+            applyTheme(customEvent.detail);
+        };
+
+        window.addEventListener("storage", handleStorageChange);
+        window.addEventListener("ablespace-theme-updated", handleThemeUpdated);
+
+        return () => {
+            window.removeEventListener("storage", handleStorageChange);
+            window.removeEventListener(
+                "ablespace-theme-updated",
+                handleThemeUpdated
+            );
+        };
+    }, []);
+
+    const changeTheme = (newTheme: "light" | "dark") => {
+        setTheme(newTheme);
+
+        localStorage.setItem(THEME_KEY, newTheme);
+
+        if (newTheme === "dark") {
+            document.documentElement.classList.add("dark");
+        } else {
+            document.documentElement.classList.remove("dark");
+        }
+
+        window.dispatchEvent(
+            new CustomEvent("ablespace-theme-updated", {
+                detail: newTheme,
+            })
+        );
+
+        setThemeOpen(false);
+    };
 
     const filterRef = useRef<HTMLDivElement>(null);
 const profileRef = useRef<HTMLDivElement>(null);
 
-const changeTheme = (newTheme: "Light" | "Dark") => {
-    setTheme(newTheme);
-
-    localStorage.setItem("ablespace-theme", newTheme);
-
-    if (newTheme === "Dark") {
-        document.documentElement.classList.add("dark");
-    } else {
-        document.documentElement.classList.remove("dark");
-    }
-
-    setThemeOpen(false);
-};
     /* --------------------------------
        Close dropdowns when clicking outside
     -------------------------------- */
@@ -368,7 +406,7 @@ const changeTheme = (newTheme: "Light" | "Dark") => {
 
                         <button
     type="button"
-    onClick={() => changeTheme("Light")}
+    onClick={() => changeTheme("light")}
     className="
         w-full
         px-3
@@ -387,14 +425,14 @@ const changeTheme = (newTheme: "Light" | "Dark") => {
         Light
     </span>
 
-    {theme === "Light" && (
+    {theme === "light" && (
         <span>✓</span>
     )}
 </button>
 
                         <button
     type="button"
-    onClick={() => changeTheme("Dark")}
+    onClick={() => changeTheme("dark")}
     className="
         w-full
         px-3
@@ -413,7 +451,7 @@ const changeTheme = (newTheme: "Light" | "Dark") => {
         Dark
     </span>
 
-    {theme === "Dark" && (
+    {theme === "dark" && (
         <span>✓</span>
     )}
 </button>

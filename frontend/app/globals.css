@@ -120,3 +120,15 @@ html.dark .shadow-lg,
 html.dark .shadow-xl {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
 }
+
+/* Search and Filter buttons - Dark Mode */
+html.dark button.border-\[\#E5E5E5\] {
+  background-color: #ffffff !important;
+  color: #111111 !important;
+  border-color: #ffffff !important;
+}
+
+html.dark button.border-\[\#E5E5E5\] svg {
+  color: #111111 !important;
+  stroke: #111111 !important;
+}
