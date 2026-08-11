@@ -25,8 +25,37 @@ export default function TaskDetailsPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const task = tasks.find((item) => item.id === id);
-  const [currentTask, setCurrentTask] = useState<typeof task>(task);
+  const initialTask = tasks.find((item) => item.id === id);
+  const [currentTask, setCurrentTask] = useState<typeof initialTask>(initialTask);
+  const [isLoadingTask, setIsLoadingTask] = useState(true);
+
+  // Use the saved task from localStorage when the task was created
+  // from the Add Task form.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ablespace-tasks");
+
+      if (saved) {
+        const parsed = JSON.parse(saved);
+
+        if (Array.isArray(parsed)) {
+          const savedTask = parsed.find(
+            (item) => String(item.id) === String(id)
+          );
+
+          if (savedTask) {
+            setCurrentTask(savedTask);
+          }
+        }
+      }
+    } catch {
+      // Keep the original task from the static data if localStorage fails.
+    } finally {
+      setIsLoadingTask(false);
+    }
+  }, [id]);
+
+  const task = currentTask;
 
   const [comments, setComments] = useState<string[]>([]);
   const [commentText, setCommentText] = useState("");
@@ -230,6 +259,14 @@ export default function TaskDetailsPage() {
   const focusReply = () => {
     replyInputRef.current?.focus();
   };
+
+  if (isLoadingTask) {
+    return (
+      <main className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-sm text-gray-500">Loading task...</p>
+      </main>
+    );
+  }
 
   if (!task) {
     return (

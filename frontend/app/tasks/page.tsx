@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -79,6 +79,18 @@ export default function TasksPage() {
   // Keep task cards synced with saved edits from the task details page.
   const [taskList, setTaskList] = useState(tasks);
 
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
+
+  const [newTask, setNewTask] = useState({
+    title: "",
+    description: "",
+    status: "To Do",
+    priority: "High",
+    member: "Admin",
+    dueDate: "",
+    labels: "",
+  });
+
   useEffect(() => {
     const loadSavedTasks = () => {
       const stored = localStorage.getItem("ablespace-tasks");
@@ -111,6 +123,12 @@ export default function TasksPage() {
 
   // Fields dropdown
   const [fieldsOpen, setFieldsOpen] = useState(false);
+
+  // Filter dropdown
+  const [showFilter, setShowFilter] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState("All");
+
+  const filterRef = useRef<HTMLDivElement>(null);
 
   // List sections
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -153,23 +171,48 @@ export default function TasksPage() {
     };
   }, [fieldsOpen]);
 
+  // Close Filter dropdown when clicking outside.
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (
+        filterRef.current &&
+        !filterRef.current.contains(target)
+      ) {
+        setShowFilter(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, []);
+
   const filteredTasks = useMemo(() => {
     const searchText = search.toLowerCase().trim();
 
-    if (!searchText) {
-      return taskList;
-    }
-
     return taskList.filter((task) => {
-      return (
+      const matchesSearch =
+        !searchText ||
         task.title.toLowerCase().includes(searchText) ||
         task.member.toLowerCase().includes(searchText) ||
         task.labels.some((label) =>
           label.toLowerCase().includes(searchText)
-        )
-      );
+        );
+
+      const matchesPriority =
+        priorityFilter === "All" ||
+        task.priority === priorityFilter;
+
+      return matchesSearch && matchesPriority;
     });
-  }, [search, taskList]);
+  }, [search, taskList, priorityFilter]);
 
   const toggleField = (
     field: keyof typeof visibleFields
@@ -185,6 +228,73 @@ export default function TasksPage() {
       ...previous,
       [status]: !previous[status],
     }));
+  };
+
+  const handleAddTask = () => {
+    if (!newTask.title.trim()) {
+      return;
+    }
+
+    const task = {
+      id: String(Date.now()),
+      title: newTask.title.trim(),
+      description:
+        newTask.description.trim() ||
+        "Add details",
+      status: newTask.status,
+      priority: newTask.priority,
+      member: newTask.member,
+      dueDate:
+        newTask.dueDate || "29 Jul",
+      labels: newTask.labels
+        ? newTask.labels
+          .split(",")
+          .map((label) => label.trim())
+          .filter(Boolean)
+        : [],
+      team: "Development",
+    };
+
+    const updatedTasks = [...taskList, task];
+
+    setTaskList(updatedTasks);
+
+    localStorage.setItem(
+      "ablespace-tasks",
+      JSON.stringify(updatedTasks)
+    );
+
+    window.dispatchEvent(
+      new Event("ablespace-tasks-updated")
+    );
+
+    setNewTask({
+      title: "",
+      description: "",
+      status: "To Do",
+      priority: "High",
+      member: "Admin",
+      dueDate: "",
+      labels: "",
+    });
+
+    setAddTaskOpen(false);
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    const updatedTasks = taskList.filter(
+      (item) => String(item.id) !== String(taskId)
+    );
+
+    setTaskList(updatedTasks);
+    localStorage.setItem(
+      "ablespace-tasks",
+      JSON.stringify(updatedTasks)
+    );
+
+    window.dispatchEvent(
+      new Event("ablespace-tasks-updated")
+    );
   };
 
   return (
@@ -390,10 +500,9 @@ export default function TasksPage() {
                         gap-1.5
                         text-[9px]
                         font-medium
-                        ${
-                          view === "list"
-                            ? "bg-[#F3F3F3] text-[#111111]"
-                            : "text-[#666666] hover:bg-[#F8F8F8]"
+                        ${view === "list"
+                          ? "bg-[#F3F3F3] text-[#111111]"
+                          : "text-[#666666] hover:bg-[#F8F8F8]"
                         }
                       `}
                     >
@@ -418,10 +527,9 @@ export default function TasksPage() {
                         gap-1.5
                         text-[9px]
                         font-medium
-                        ${
-                          view === "board"
-                            ? "bg-[#F3F3F3] text-[#111111]"
-                            : "text-[#666666] hover:bg-[#F8F8F8]"
+                        ${view === "board"
+                          ? "bg-[#F3F3F3] text-[#111111]"
+                          : "text-[#666666] hover:bg-[#F8F8F8]"
                         }
                       `}
                     >
@@ -491,30 +599,95 @@ export default function TasksPage() {
               )}
 
               {/* Filter */}
-              <button
-                type="button"
-                className="
-                  w-7 h-7
-                  border border-[#E5E5E5]
-                  rounded-md
-                  flex items-center justify-center
-                  text-[#444444]
-                  bg-white
-                  hover:bg-[#E8E8E8]
-                  hover:border-[#CFCFCF]
-                  hover:text-black
-                  transition-all duration-150
-                "
+              <div
+                ref={filterRef}
+                className="relative"
               >
-                <Filter
-                  size={12}
-                  strokeWidth={1.8}
-                />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFilter((previous) => !previous);
+                    setFieldsOpen(false);
+                  }}
+                  className="
+                    w-7 h-7
+                    border border-[#E5E5E5]
+                    rounded-md
+                    flex items-center justify-center
+                    text-[#444444]
+                    bg-white
+                    hover:bg-[#E8E8E8]
+                    hover:border-[#CFCFCF]
+                    hover:text-black
+                    transition-all duration-150
+                  "
+                  title="Filter"
+                >
+                  <Filter
+                    size={12}
+                    strokeWidth={1.8}
+                  />
+                </button>
+
+                {showFilter && (
+                  <div
+                    className="
+                      absolute
+                      right-0
+                      top-[34px]
+                      z-50
+                      w-[170px]
+                      rounded-md
+                      border border-[#E5E5E5]
+                      bg-white
+                      shadow-[0_4px_12px_rgba(0,0,0,0.08)]
+                      p-2
+                    "
+                  >
+                    <p className="px-2 py-1 text-[9px] font-medium text-gray-700">
+                      Priority
+                    </p>
+
+                    {["All", "High", "Medium", "Low"].map(
+                      (priority) => (
+                        <button
+                          key={priority}
+                          type="button"
+                          onClick={() => {
+                            setPriorityFilter(priority);
+                            setShowFilter(false);
+                          }}
+                          className="
+                            w-full
+                            flex items-center justify-between
+                            px-2 py-1.5
+                            rounded
+                            text-[9px]
+                            hover:bg-gray-50
+                          "
+                        >
+                          <span>{priority}</span>
+
+                          {priorityFilter === priority && (
+                            <span>✓</span>
+                          )}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Add Task */}
               <button
                 type="button"
+                onClick={() => {
+                  setNewTask((previous) => ({
+                    ...previous,
+                    status: "To Do",
+                  }));
+                  setAddTaskOpen(true);
+                }}
                 className="
                   h-7 px-3
                   rounded-md
@@ -579,24 +752,6 @@ export default function TasksPage() {
 
                         </div>
 
-                        <div className="flex items-center gap-1">
-
-                          <button
-                            type="button"
-                            className="text-[#888888] hover:text-[#222222]"
-                          >
-                            <Plus size={11} />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="text-[#888888] text-[9px]"
-                          >
-                            •••
-                          </button>
-
-                        </div>
-
                       </div>
 
                       {/* Cards */}
@@ -607,6 +762,7 @@ export default function TasksPage() {
                             key={task.id}
                             task={task}
                             visibleFields={visibleFields}
+                            onDelete={handleDeleteTask}
                           />
                         ))}
 
@@ -615,6 +771,14 @@ export default function TasksPage() {
                       {/* Add Task */}
                       <button
                         type="button"
+                        onClick={() => {
+                          setNewTask((previous) => ({
+                            ...previous,
+                            status: column.status,
+                          }));
+
+                          setAddTaskOpen(true);
+                        }}
                         className="
                           w-full
                           text-left
@@ -661,9 +825,7 @@ export default function TasksPage() {
                     {/* Section Header */}
                     <button
                       type="button"
-                      onClick={() =>
-                        toggleSection(column.status)
-                      }
+                      onClick={() => toggleSection(column.status)}
                       className="
                         flex
                         items-center
@@ -867,6 +1029,14 @@ export default function TasksPage() {
                         {/* Add Task */}
                         <button
                           type="button"
+                          onClick={() => {
+                            setNewTask((previous) => ({
+                              ...previous,
+                              status: column.status,
+                            }));
+
+                            setAddTaskOpen(true);
+                          }}
                           className="
                             flex
                             items-center
@@ -897,6 +1067,188 @@ export default function TasksPage() {
           )}
 
         </main>
+
+        {/* ================= ADD TASK MODAL ================= */}
+        {addTaskOpen && (
+          <div className="fixed inset-0 z-[100] bg-black/20 flex items-center justify-center">
+            <div className="w-[380px] bg-white rounded-lg border border-[#E5E5E5] shadow-xl p-5">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-sm font-semibold text-[#111111]">
+                  Add Task
+                </h2>
+
+                <button
+                  type="button"
+                  onClick={() => setAddTaskOpen(false)}
+                  className="text-gray-400 hover:text-black text-lg"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {/* Task Name */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Task
+                  </label>
+                  <input
+                    value={newTask.title}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        title: event.target.value,
+                      }))
+                    }
+                    placeholder="Enter task name"
+                    className="w-full h-9 border border-gray-200 rounded-md px-3 text-[10px] outline-none focus:border-gray-400"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={newTask.description}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        description: event.target.value,
+                      }))
+                    }
+                    placeholder="Enter description"
+                    className="w-full h-16 border border-gray-200 rounded-md px-3 py-2 text-[10px] outline-none resize-none focus:border-gray-400"
+                  />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={newTask.status}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        status: event.target.value,
+                      }))
+                    }
+                    className="w-full h-9 border border-gray-200 rounded-md px-3 text-[10px] outline-none"
+                  >
+                    <option value="To Do">To Do</option>
+                    <option value="Doing">Doing</option>
+                    <option value="Completed">Completed</option>
+                    <option value="On Hold">On Hold</option>
+                  </select>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        priority: event.target.value,
+                      }))
+                    }
+                    className="w-full h-9 border border-gray-200 rounded-md px-3 text-[10px] outline-none"
+                  >
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+
+                {/* Member */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Member
+                  </label>
+                  <select
+                    value={newTask.member}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        member: event.target.value,
+                      }))
+                    }
+                    className="w-full h-9 border border-gray-200 rounded-md px-3 text-[10px] outline-none"
+                  >
+                    <option value="Admin">Admin</option>
+                    <option value="CN">CN</option>
+                    <option value="Designer">Designer</option>
+                    <option value="Developer">Developer</option>
+                    <option value="QA Team">QA Team</option>
+                  </select>
+                </div>
+
+                {/* Due Date */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        dueDate: event.target.value,
+                      }))
+                    }
+                    className="w-full h-9 border border-gray-200 rounded-md px-3 text-[10px] outline-none"
+                  />
+                </div>
+
+                {/* Labels */}
+                <div>
+                  <label className="block text-[10px] text-gray-500 mb-1">
+                    Labels
+                  </label>
+                  <input
+                    value={newTask.labels}
+                    onChange={(event) =>
+                      setNewTask((previous) => ({
+                        ...previous,
+                        labels: event.target.value,
+                      }))
+                    }
+                    placeholder="Research, Development"
+                    className="w-full h-9 border border-gray-200 rounded-md px-3 text-[10px] outline-none focus:border-gray-400"
+                  />
+                  <p className="text-[8px] text-gray-400 mt-1">
+                    Separate labels with commas.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setAddTaskOpen(false)}
+                  className="h-8 px-3 rounded-md border border-gray-200 text-[10px] text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAddTask}
+                  className="h-8 px-4 rounded-md bg-black text-white text-[10px] font-medium hover:bg-gray-800"
+                >
+                  Add Task
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -943,10 +1295,9 @@ function FieldOption({
           flex
           items-center
           justify-center
-          ${
-            checked
-              ? "bg-[#111111] border-[#111111]"
-              : "bg-white border-[#DCDCDC]"
+          ${checked
+            ? "bg-[#111111] border-[#111111]"
+            : "bg-white border-[#DCDCDC]"
           }
         `}
       >
@@ -998,6 +1349,7 @@ function PriorityValue({
 function TaskCard({
   task,
   visibleFields,
+  onDelete,
 }: {
   task: (typeof tasks)[number];
   visibleFields: {
@@ -1008,7 +1360,24 @@ function TaskCard({
     status: boolean;
     reporter: boolean;
   };
+  onDelete: (taskId: string) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleOutsideClick = () => {
+      setMenuOpen(false);
+    };
+
+    document.addEventListener("click", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("click", handleOutsideClick);
+    };
+  }, [menuOpen]);
+
   return (
     <Link
       href={`/tasks/${task.id}`}
@@ -1018,7 +1387,7 @@ function TaskCard({
         bg-white
         border border-[#DCDCDC]
         rounded-md
-        p-2.5
+        p-2
         hover:border-gray-300
         transition
       "
@@ -1031,21 +1400,85 @@ function TaskCard({
           {task.title}
         </h3>
 
-        <button
-          type="button"
-          onClick={(event) =>
-            event.preventDefault()
-          }
-          className="text-[#888888] text-[8px] shrink-0"
-        >
-          •••
-        </button>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setMenuOpen((open) => !open);
+            }}
+            className="text-[#777777] text-[9px] leading-none px-1 py-0.5 hover:text-black"
+            aria-label="Task actions"
+          >
+            •••
+          </button>
+
+          {menuOpen && (
+            <div
+              className="
+                absolute
+                right-0
+                top-5
+                z-50
+                w-[110px]
+                rounded-md
+                border
+                border-[#E5E5E5]
+                bg-white
+                shadow-lg
+                py-1
+              "
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = `/tasks/${task.id}`;
+                }}
+                className="
+                  w-full
+                  text-left
+                  px-3
+                  py-2
+                  text-[9px]
+                  text-[#333333]
+                  hover:bg-[#F5F5F5]
+                "
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete(String(task.id));
+                }}
+                className="
+                  w-full
+                  text-left
+                  px-3
+                  py-2
+                  text-[9px]
+                  text-red-500
+                  hover:bg-red-50
+                "
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
 
       </div>
 
       {/* Status */}
       {visibleFields.status && (
-        <div className="mt-2">
+        <div className="mt-1">
           <span className="text-[8px] text-[#555555]">
             Status: {task.status}
           </span>
@@ -1054,7 +1487,7 @@ function TaskCard({
 
       {/* Priority */}
       {visibleFields.priority && (
-        <div className="mt-2">
+        <div className="mt-1">
           <span className="text-[8px] text-[#555555]">
             Priority: {task.priority}
           </span>
@@ -1065,14 +1498,14 @@ function TaskCard({
       {(visibleFields.members ||
         visibleFields.dueDate) && (
 
-        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center justify-between mt-1">
 
-          {/* Member */}
-          {visibleFields.members && (
-            <div className="flex items-center gap-1.5 min-w-0">
+            {/* Member */}
+            {visibleFields.members && (
+              <div className="flex items-center gap-1.5 min-w-0">
 
-              <div
-                className="
+                <div
+                  className="
                   w-4 h-4
                   rounded-full
                   bg-purple-500
@@ -1081,24 +1514,24 @@ function TaskCard({
                   justify-center
                   shrink-0
                 "
-              >
-                <UserRound
-                  size={8}
-                  className="text-white"
-                />
+                >
+                  <UserRound
+                    size={8}
+                    className="text-white"
+                  />
+                </div>
+
+                <span className="text-[8px] text-[#555555] truncate">
+                  {task.member}
+                </span>
+
               </div>
+            )}
 
-              <span className="text-[8px] text-[#555555] truncate">
-                {task.member}
-              </span>
-
-            </div>
-          )}
-
-          {/* Date */}
-          {visibleFields.dueDate && (
-            <span
-              className="
+            {/* Date */}
+            {visibleFields.dueDate && (
+              <span
+                className="
                 inline-flex
                 items-center
                 gap-0.5
@@ -1111,27 +1544,27 @@ function TaskCard({
                 shrink-0
                 ml-2
               "
-            >
-              <CalendarDays size={8} />
+              >
+                <CalendarDays size={8} />
 
-              {task.dueDate}
-            </span>
-          )}
+                {task.dueDate}
+              </span>
+            )}
 
-        </div>
-      )}
+          </div>
+        )}
 
       {/* Labels */}
       {visibleFields.labels &&
         task.labels.length > 0 && (
 
-        <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-wrap gap-1 mt-1">
 
-          {task.labels.map((label) => (
+            {task.labels.map((label) => (
 
-            <span
-              key={label}
-              className="
+              <span
+                key={label}
+                className="
                 border border-[#E5E5E5]
                 rounded-full
                 px-1.5
@@ -1139,18 +1572,18 @@ function TaskCard({
                 text-[7px]
                 text-[#555555]
               "
-            >
-              {label}
-            </span>
+              >
+                {label}
+              </span>
 
-          ))}
+            ))}
 
-        </div>
-      )}
+          </div>
+        )}
 
       {/* Reporter */}
       {visibleFields.reporter && (
-        <div className="mt-2">
+        <div className="mt-1">
 
           <span className="text-[8px] text-[#555555]">
             Reporter: {task.member}
