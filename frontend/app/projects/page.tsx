@@ -16,6 +16,8 @@ import {
     Sun,
     Moon,
     Settings,
+    ChevronRight,
+Check,
 } from "lucide-react";
 
 type Project = {
@@ -52,11 +54,13 @@ const initialProjects: Project[] = [
 
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>(initialProjects);
-
+const [leadFilter, setLeadFilter] = useState("All");
+const [dueDateFilter, setDueDateFilter] = useState("All");
     const [search, setSearch] = useState("");
     const [showSearch, setShowSearch] = useState(false);
 
     const [showFilter, setShowFilter] = useState(false);
+    const [filterSubmenu, setFilterSubmenu] = useState<string | null>(null);
 
     const [priorityFilter, setPriorityFilter] = useState("All");
 
@@ -72,6 +76,11 @@ export default function ProjectsPage() {
 
     const [profileOpen, setProfileOpen] = useState(false);
 const [themeOpen, setThemeOpen] = useState(false);
+const [colorModeOpen, setColorModeOpen] = useState(false);
+
+const [colorMode, setColorMode] = useState<
+  "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+>("blue");
     const [theme, setTheme] = useState<"light" | "dark">("light");
 
     useEffect(() => {
@@ -113,6 +122,7 @@ const [themeOpen, setThemeOpen] = useState(false);
         };
     }, []);
 
+
     const changeTheme = (newTheme: "light" | "dark") => {
         setTheme(newTheme);
 
@@ -132,6 +142,94 @@ const [themeOpen, setThemeOpen] = useState(false);
 
         setThemeOpen(false);
     };
+
+    const changeColorMode = (
+  newColor: "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+) => {
+  setColorMode(newColor);
+
+  localStorage.setItem("ablespace-color-mode", newColor);
+
+  const colors = {
+    amber: "#f59e0b",
+    blue: "#3b82f6",
+    pink: "#ec4899",
+    rose: "#f43f5e",
+    emerald: "#10b981",
+    black: "#111111",
+  };
+
+  document.documentElement.style.setProperty(
+    "--accent-color",
+    colors[newColor]
+  );
+
+  window.dispatchEvent(
+    new CustomEvent("ablespace-color-mode-updated", {
+      detail: newColor,
+    })
+  );
+
+  setColorModeOpen(false);
+};
+
+useEffect(() => {
+  const colors = {
+    amber: "#f59e0b",
+    blue: "#3b82f6",
+    pink: "#ec4899",
+    rose: "#f43f5e",
+    emerald: "#10b981",
+    black: "#111111",
+  };
+
+  const applyColorMode = (savedColor: string | null) => {
+    const selected =
+      savedColor === "amber" ||
+      savedColor === "blue" ||
+      savedColor === "pink" ||
+      savedColor === "rose" ||
+      savedColor === "emerald" ||
+      savedColor === "black"
+        ? savedColor
+        : "blue";
+
+    setColorMode(selected);
+
+    document.documentElement.style.setProperty(
+      "--accent-color",
+      colors[selected]
+    );
+  };
+
+  applyColorMode(localStorage.getItem("ablespace-color-mode"));
+
+  const handleColorModeUpdated = (event: Event) => {
+    const customEvent = event as CustomEvent<
+      "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+    >;
+
+    applyColorMode(customEvent.detail);
+  };
+
+  window.addEventListener(
+    "ablespace-color-mode-updated",
+    handleColorModeUpdated
+  );
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === "ablespace-color-mode") {
+      applyColorMode(event.newValue);
+    }
+  });
+
+  return () => {
+    window.removeEventListener(
+      "ablespace-color-mode-updated",
+      handleColorModeUpdated
+    );
+  };
+}, []);
 
     const filterRef = useRef<HTMLDivElement>(null);
 const profileRef = useRef<HTMLDivElement>(null);
@@ -158,7 +256,8 @@ const profileRef = useRef<HTMLDivElement>(null);
             !profileRef.current.contains(target)
         ) {
             setProfileOpen(false);
-            setThemeOpen(false);
+setThemeOpen(false);
+setColorModeOpen(false);
         }
     };
 
@@ -177,24 +276,71 @@ const profileRef = useRef<HTMLDivElement>(null);
     -------------------------------- */
 
     const filteredProjects = useMemo(() => {
-        const searchText = search.toLowerCase().trim();
+  const searchText = search.toLowerCase().trim();
 
-        return projects.filter((project) => {
-            const matchesSearch =
-                project.name
-                    .toLowerCase()
-                    .includes(searchText) ||
-                project.lead
-                    .toLowerCase()
-                    .includes(searchText);
+  return projects.filter((project) => {
+    const matchesSearch =
+      !searchText ||
+      project.name
+        .toLowerCase()
+        .includes(searchText) ||
+      project.lead
+        .toLowerCase()
+        .includes(searchText);
 
-            const matchesPriority =
-                priorityFilter === "All" ||
-                project.priority === priorityFilter;
+    const matchesPriority =
+      priorityFilter === "All" ||
+      project.priority === priorityFilter;
 
-            return matchesSearch && matchesPriority;
-        });
-    }, [projects, search, priorityFilter]);
+    const matchesLead =
+      leadFilter === "All" ||
+      project.lead === leadFilter;
+
+    const matchesDueDate = (() => {
+      if (dueDateFilter === "All") {
+        return true;
+      }
+
+      if (dueDateFilter === "No Due Date") {
+        return (
+          !project.dueDate ||
+          project.dueDate.trim() === ""
+        );
+      }
+
+      if (dueDateFilter === "Overdue") {
+        if (!project.dueDate) return false;
+
+        const projectDate = new Date(project.dueDate);
+        const today = new Date();
+
+        if (Number.isNaN(projectDate.getTime())) {
+          return false;
+        }
+
+        projectDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        return projectDate < today;
+      }
+
+      return project.dueDate === dueDateFilter;
+    })();
+
+    return (
+      matchesSearch &&
+      matchesPriority &&
+      matchesLead &&
+      matchesDueDate
+    );
+  });
+}, [
+  projects,
+  search,
+  priorityFilter,
+  leadFilter,
+  dueDateFilter,
+]);
 
     /* --------------------------------
        Add project
@@ -285,7 +431,8 @@ const profileRef = useRef<HTMLDivElement>(null);
             event.stopPropagation();
 
             setProfileOpen((prev) => !prev);
-            setThemeOpen(false);
+setThemeOpen(false);
+setColorModeOpen(false);
         }}
         className="
             w-full
@@ -300,7 +447,7 @@ const profileRef = useRef<HTMLDivElement>(null);
         "
     >
         <div className="flex items-center gap-2">
-            <div className="w-[21px] h-[21px] rounded-full bg-purple-500 flex items-center justify-center">
+            <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
                 <span className="text-[8px] font-medium text-white">
                     D
                 </span>
@@ -336,7 +483,7 @@ const profileRef = useRef<HTMLDivElement>(null);
             {/* Profile */}
             <div className="px-3 py-3">
                 <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
                         <span className="text-[12px] font-medium text-white">
                             D
                         </span>
@@ -460,27 +607,109 @@ const profileRef = useRef<HTMLDivElement>(null);
             </div>
 
             {/* Color Mode */}
-            <button
-                type="button"
-                className="
-                    w-full
-                    h-[32px]
-                    px-3
-                    flex
-                    items-center
-                    justify-between
-                    text-[9px]
-                    text-[#333333]
-                    hover:bg-[#F5F5F5]
-                    cursor-pointer
-                "
-            >
-                <span>
-                    ■&nbsp;&nbsp;Color Mode
-                </span>
+           {/* Color Mode */}
+<div className="relative">
+  <button
+    type="button"
+    onClick={(event) => {
+      event.stopPropagation();
+      setColorModeOpen((prev) => !prev);
+      setThemeOpen(false);
+    }}
+    className="
+      w-full
+      h-[32px]
+      px-3
+      flex
+      items-center
+      justify-between
+      text-[9px]
+      text-[#333333]
+      hover:bg-[#F5F5F5]
+      cursor-pointer
+    "
+  >
+    <span className="flex items-center gap-2">
+      <span
+        className="w-[7px] h-[7px] rounded-[1px]"
+        style={{ backgroundColor: "var(--accent-color)" }}
+      />
+      <span>Color Mode</span>
+    </span>
 
-                <span>›</span>
-            </button>
+    <span className="text-[10px]">›</span>
+  </button>
+
+  {/* Color Mode submenu */}
+  {colorModeOpen && (
+    <div
+      className="
+        absolute
+        left-[140px]
+        top-0
+        z-[10000]
+        w-[115px]
+        rounded-md
+        border
+        border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+        py-1
+      "
+    >
+      <p className="px-3 py-1 text-[8px] text-[#777777]">
+        Color Mode
+      </p>
+
+      {[
+        { key: "amber", label: "Amber", color: "#f59e0b" },
+        { key: "blue", label: "Blue", color: "#3b82f6" },
+        { key: "pink", label: "Pink", color: "#ec4899" },
+        { key: "rose", label: "Rose", color: "#f43f5e" },
+        { key: "emerald", label: "Emerald", color: "#10b981" },
+        { key: "black", label: "Black", color: "#111111" },
+      ].map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={() =>
+            changeColorMode(
+              item.key as
+                | "amber"
+                | "blue"
+                | "pink"
+                | "rose"
+                | "emerald"
+                | "black"
+            )
+          }
+          className="
+            w-full
+            h-[28px]
+            px-3
+            flex
+            items-center
+            justify-between
+            text-[9px]
+            text-[#333333]
+            hover:bg-[#F5F5F5]
+            cursor-pointer
+          "
+        >
+          <span className="flex items-center gap-2">
+            <span
+              className="w-[8px] h-[8px] rounded-[1px]"
+              style={{ backgroundColor: item.color }}
+            />
+            {item.label}
+          </span>
+
+          {colorMode === item.key && <span>✓</span>}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 
             {/* Settings */}
             <button
@@ -665,104 +894,140 @@ const profileRef = useRef<HTMLDivElement>(null);
                                 </button>
                             )}
 
-                            {/* Filter */}
+                            {/* FILTER */}
+<div ref={filterRef} className="relative">
+  <button
+    type="button"
+    onClick={() => {
+      setShowFilter((previous) => !previous);
+      setFilterSubmenu(null);
+    }}
+    className="
+      w-7 h-7
+      border border-[#E5E5E5]
+      rounded-md
+      flex items-center justify-center
+      bg-white
+      hover:bg-[#F5F5F5]
+    "
+  >
+    <Filter size={12} strokeWidth={1.8} />
+  </button>
 
-                            <div
-                                ref={filterRef}
-                                className="relative"
-                            >
-                                
+  {showFilter && (
+    <div
+      className="
+        absolute
+        right-0
+        top-[34px]
+        z-50
+        w-[120px]
+        rounded-md
+        border border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+        py-1
+      "
+    >
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowFilter(
-                                            (previous) => !previous
-                                        );
-                                        setShowFilter(true);
-                                    }}
-                                    className="
-                    w-7 h-7
-                    border border-[#E5E5E5]
-                    rounded-md
-                    flex items-center justify-center
-                    text-[#444444]
-                    bg-white
-                    hover:bg-[#E8E8E8]
-                  "
-                                    title="Filter"
-                                >
-                                    <Filter
-                                        size={12}
-                                        strokeWidth={1.8}
-                                    />
-                                </button>
+      {/* Priority */}
+      <FilterMenuItem
+        label="Priority"
+        active={filterSubmenu === "priority"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "priority"
+              ? null
+              : "priority"
+          )
+        }
+      />
 
-                                {showFilter && (
-                                    <div
-                                        className="
-                      absolute
-                      right-0
-                      top-[34px]
-                      z-50
-                      w-[170px]
-                      rounded-md
-                      border border-[#E5E5E5]
-                      bg-white
-                      shadow-[0_4px_12px_rgba(0,0,0,0.08)]
-                      p-2
-                    "
-                                    >
+      {filterSubmenu === "priority" && (
+        <FilterSubmenu
+          title="Priority"
+          value={priorityFilter}
+          options={[
+            "All",
+            "Urgent",
+            "High",
+            "Medium",
+            "Low",
+          ]}
+          urgentOption="Urgent"
+          onSelect={(value) => {
+            setPriorityFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
 
-                                        <p className="px-2 py-1 text-[9px] font-medium text-gray-700">
-                                            Priority
-                                        </p>
+      {/* Lead */}
+      <FilterMenuItem
+        label="Lead"
+        active={filterSubmenu === "lead"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "lead"
+              ? null
+              : "lead"
+          )
+        }
+      />
 
-                                        {[
-                                            "All",
-                                            "High",
-                                            "Medium",
-                                            "Low",
-                                        ].map((priority) => (
+      {filterSubmenu === "lead" && (
+        <FilterSubmenu
+          title="Lead"
+          value={leadFilter}
+          options={[
+            "All",
+            "Admin",
+            "CN",
+          ]}
+          onSelect={(value) => {
+            setLeadFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
 
-                                            <button
-                                                key={priority}
-                                                type="button"
-                                                onClick={() => {
-                                                    setPriorityFilter(
-                                                        priority
-                                                    );
-                                                    setShowFilter(false);
-                                                }}
-                                                className="
-                          w-full
-                          flex items-center justify-between
-                          px-2 py-1.5
-                          rounded
-                          text-[9px]
-                          hover:bg-gray-50
-                        "
-                                            >
+      {/* Due Date */}
+      <FilterMenuItem
+        label="Due Date"
+        active={filterSubmenu === "dueDate"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "dueDate"
+              ? null
+              : "dueDate"
+          )
+        }
+      />
 
-                                                <span>
-                                                    {priority}
-                                                </span>
-
-                                                {priorityFilter ===
-                                                    priority && (
-                                                        <span>
-                                                            ✓
-                                                        </span>
-                                                    )}
-
-                                            </button>
-
-                                        ))}
-
-                                    </div>
-                                )}
-
-                            </div>
+      {filterSubmenu === "dueDate" && (
+        <FilterSubmenu
+          title="Due Date"
+          value={dueDateFilter}
+          options={[
+            "All",
+            "Today",
+            "Tomorrow",
+            "This Week",
+            "Overdue",
+            "No Due Date",
+          ]}
+          onSelect={(value) => {
+            setDueDateFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+    </div>
+  )}
+</div>
 
                             {/* Add Project */}
 
@@ -875,7 +1140,7 @@ const profileRef = useRef<HTMLDivElement>(null);
                                             <div className="
                           w-5 h-5
                           rounded-full
-                          bg-purple-500
+                          bg-[var(--accent-color)]
                           flex items-center justify-center
                         ">
                                                 <UserRound
@@ -1225,6 +1490,109 @@ const profileRef = useRef<HTMLDivElement>(null);
 
         </div>
     );
+}
+
+function FilterMenuItem({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="
+        w-full
+        h-[28px]
+        px-3
+        flex
+        items-center
+        justify-between
+        text-[9px]
+        text-[#333333]
+        hover:bg-[#F5F5F5]
+      "
+    >
+      <span>{label}</span>
+
+      <ChevronRight
+        size={10}
+        strokeWidth={1.5}
+      />
+    </button>
+  );
+}
+
+function FilterSubmenu({
+  title,
+  value,
+  options,
+  onSelect,
+  urgentOption,
+}: {
+  title: string;
+  value: string;
+  options: string[];
+  onSelect: (value: string) => void;
+  urgentOption?: string;
+}) {
+  return (
+    <div
+      className="
+        absolute
+        right-[118px]
+        top-0
+        z-[60]
+        w-[120px]
+        rounded-md
+        border border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+        py-1
+      "
+    >
+      <div className="px-3 py-1 text-[8px] text-[#777777]">
+        {title}
+      </div>
+
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onSelect(option)}
+          className="
+            w-full
+            h-[28px]
+            px-3
+            flex
+            items-center
+            justify-between
+            text-[9px]
+            text-[#333333]
+            hover:bg-[#F5F5F5]
+          "
+        >
+          <span
+            className={
+              option === urgentOption
+                ? "text-red-500"
+                : ""
+            }
+          >
+            {option}
+          </span>
+
+          {value === option && (
+            <span>✓</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /* =========================================================

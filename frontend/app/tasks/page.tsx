@@ -151,6 +151,93 @@ export default function TasksPage() {
     setThemeOpen(false);
   };
 
+  const changeColorMode = (
+    newColor: "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+  ) => {
+    setColorMode(newColor);
+
+    localStorage.setItem("ablespace-color-mode", newColor);
+
+    const colors = {
+      amber: "#f59e0b",
+      blue: "#3b82f6",
+      pink: "#ec4899",
+      rose: "#f43f5e",
+      emerald: "#10b981",
+      black: "#111111",
+    };
+
+    document.documentElement.style.setProperty(
+      "--accent-color",
+      colors[newColor]
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("ablespace-color-mode-updated", {
+        detail: newColor,
+      })
+    );
+
+    setColorModeOpen(false);
+  };
+  useEffect(() => {
+    const colors = {
+      amber: "#f59e0b",
+      blue: "#3b82f6",
+      pink: "#ec4899",
+      rose: "#f43f5e",
+      emerald: "#10b981",
+      black: "#111111",
+    };
+
+    const applyColorMode = (savedColor: string | null) => {
+      const selected =
+        savedColor === "amber" ||
+          savedColor === "blue" ||
+          savedColor === "pink" ||
+          savedColor === "rose" ||
+          savedColor === "emerald" ||
+          savedColor === "black"
+          ? savedColor
+          : "blue";
+
+      setColorMode(selected);
+
+      document.documentElement.style.setProperty(
+        "--accent-color",
+        colors[selected]
+      );
+    };
+
+    applyColorMode(localStorage.getItem("ablespace-color-mode"));
+
+    const handleColorModeUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<
+        "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+      >;
+
+      applyColorMode(customEvent.detail);
+    };
+
+    window.addEventListener(
+      "ablespace-color-mode-updated",
+      handleColorModeUpdated
+    );
+
+    window.addEventListener("storage", (event) => {
+      if (event.key === "ablespace-color-mode") {
+        applyColorMode(event.newValue);
+      }
+    });
+
+    return () => {
+      window.removeEventListener(
+        "ablespace-color-mode-updated",
+        handleColorModeUpdated
+      );
+    };
+  }, []);
+
   useEffect(() => {
     const loadSavedTasks = () => {
       const stored = localStorage.getItem("ablespace-tasks");
@@ -186,8 +273,21 @@ export default function TasksPage() {
 
   // Filter dropdown
   const [showFilter, setShowFilter] = useState(false);
+  const [filterSubmenu, setFilterSubmenu] = useState<string | null>(null);
+const [statusFilter, setStatusFilter] = useState("All");
+const [priorityFilter, setPriorityFilter] = useState("All");
+const [memberFilter, setMemberFilter] = useState("All");
+const [dueDateFilter, setDueDateFilter] = useState("All");
+const [teamFilter, setTeamFilter] = useState("All");
+const [labelFilter, setLabelFilter] = useState("All");
+const [reporterFilter, setReporterFilter] = useState("All");
   const [profileOpen, setProfileOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [colorModeOpen, setColorModeOpen] = useState(false);
+
+  const [colorMode, setColorMode] = useState<
+    "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+  >("blue");
 
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -201,6 +301,7 @@ export default function TasksPage() {
       ) {
         setProfileOpen(false);
         setThemeOpen(false);
+        setColorModeOpen(false);
       }
     };
 
@@ -210,7 +311,6 @@ export default function TasksPage() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-  const [priorityFilter, setPriorityFilter] = useState("All");
 
   const filterRef = useRef<HTMLDivElement>(null);
 
@@ -279,24 +379,159 @@ export default function TasksPage() {
   }, []);
 
   const filteredTasks = useMemo(() => {
-    const searchText = search.toLowerCase().trim();
+  const searchText = search.toLowerCase().trim();
 
-    return taskList.filter((task) => {
-      const matchesSearch =
-        !searchText ||
-        task.title.toLowerCase().includes(searchText) ||
-        task.member.toLowerCase().includes(searchText) ||
-        task.labels.some((label) =>
-          label.toLowerCase().includes(searchText)
+  return taskList.filter((task) => {
+    /* SEARCH */
+    const matchesSearch =
+      !searchText ||
+      task.title.toLowerCase().includes(searchText) ||
+      task.member.toLowerCase().includes(searchText) ||
+      task.labels.some((label) =>
+        label.toLowerCase().includes(searchText)
+      );
+
+    /* STATUS */
+    const matchesStatus =
+      statusFilter === "All" ||
+      task.status === statusFilter;
+
+    /* PRIORITY */
+    const matchesPriority =
+      priorityFilter === "All" ||
+      task.priority === priorityFilter;
+
+    /* MEMBERS */
+    const matchesMember =
+      memberFilter === "All" ||
+      task.member === memberFilter;
+
+    /* TEAM */
+    const matchesTeam =
+      teamFilter === "All" ||
+      task.team === teamFilter;
+
+    /* LABELS */
+    const matchesLabel =
+      labelFilter === "All" ||
+      task.labels.includes(labelFilter);
+
+    /* REPORTER */
+    const taskReporter =
+      (task as typeof task & { reporter?: string }).reporter ||
+      task.member;
+
+    const matchesReporter =
+      reporterFilter === "All" ||
+      taskReporter === reporterFilter;
+
+    /* DUE DATE */
+    const matchesDueDate = (() => {
+      if (dueDateFilter === "All") {
+        return true;
+      }
+
+      if (dueDateFilter === "No Due Date") {
+        return !task.dueDate || task.dueDate.trim() === "";
+      }
+
+      if (dueDateFilter === "Overdue") {
+        if (!task.dueDate) return false;
+
+        const taskDate = new Date(task.dueDate);
+        const today = new Date();
+
+        if (Number.isNaN(taskDate.getTime())) {
+          return false;
+        }
+
+        taskDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        return taskDate < today;
+      }
+
+      if (dueDateFilter === "Today") {
+        const taskDate = new Date(task.dueDate);
+        const today = new Date();
+
+        if (Number.isNaN(taskDate.getTime())) {
+          return false;
+        }
+
+        return (
+          taskDate.toDateString() === today.toDateString()
         );
+      }
 
-      const matchesPriority =
-        priorityFilter === "All" ||
-        task.priority === priorityFilter;
+      if (dueDateFilter === "Tomorrow") {
+        const taskDate = new Date(task.dueDate);
+        const tomorrow = new Date();
 
-      return matchesSearch && matchesPriority;
-    });
-  }, [search, taskList, priorityFilter]);
+        if (Number.isNaN(taskDate.getTime())) {
+          return false;
+        }
+
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        return (
+          taskDate.toDateString() ===
+          tomorrow.toDateString()
+        );
+      }
+
+      if (dueDateFilter === "This Week") {
+        const taskDate = new Date(task.dueDate);
+
+        if (Number.isNaN(taskDate.getTime())) {
+          return false;
+        }
+
+        const today = new Date();
+
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(
+          today.getDate() - today.getDay()
+        );
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(
+          startOfWeek.getDate() + 6
+        );
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        return (
+          taskDate >= startOfWeek &&
+          taskDate <= endOfWeek
+        );
+      }
+
+      return task.dueDate === dueDateFilter;
+    })();
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesPriority &&
+      matchesMember &&
+      matchesDueDate &&
+      matchesTeam &&
+      matchesLabel &&
+      matchesReporter
+    );
+  });
+}, [
+  search,
+  taskList,
+  statusFilter,
+  priorityFilter,
+  memberFilter,
+  dueDateFilter,
+  teamFilter,
+  labelFilter,
+  reporterFilter,
+]);
 
   const toggleField = (
     field: keyof typeof visibleFields
@@ -401,6 +636,7 @@ export default function TasksPage() {
                 event.stopPropagation();
                 setProfileOpen((prev) => !prev);
                 setThemeOpen(false);
+                setColorModeOpen(false);
               }}
               className="
       w-full
@@ -413,7 +649,7 @@ export default function TasksPage() {
     "
             >
               <div className="flex items-center gap-2">
-                <div className="w-[21px] h-[21px] rounded-full bg-purple-500 flex items-center justify-center">
+                <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
                   <span className="text-[8px] font-medium text-white">
                     D
                   </span>
@@ -451,7 +687,7 @@ export default function TasksPage() {
                 {/* Profile */}
                 <div className="px-3 pt-3 pb-3">
                   <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
                       <span className="text-[12px] font-medium text-white">
                         D
                       </span>
@@ -567,27 +803,109 @@ export default function TasksPage() {
                 </div>
 
                 {/* Color Mode */}
-                <button
-                  type="button"
-                  className="
-          w-full
-          h-[32px]
-          px-3
-          flex
-          items-center
-          justify-between
-          text-[9px]
-          text-[#333333]
-          hover:bg-[#F5F5F5]
-        "
-                >
-                  <span className="flex items-center gap-2">
-                    ■
-                    <span>Color Mode</span>
-                  </span>
+                {/* Color Mode */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setColorModeOpen((prev) => !prev);
+                      setThemeOpen(false);
+                    }}
+                    className="
+      w-full
+      h-[32px]
+      px-3
+      flex
+      items-center
+      justify-between
+      text-[9px]
+      text-[#333333]
+      hover:bg-[#F5F5F5]
+      cursor-pointer
+    "
+                  >
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="w-[7px] h-[7px] rounded-[1px]"
+                        style={{ backgroundColor: "var(--accent-color)" }}
+                      />
+                      <span>Color Mode</span>
+                    </span>
 
-                  <span className="text-[10px]">›</span>
-                </button>
+                    <span className="text-[10px]">›</span>
+                  </button>
+
+                  {/* Color Mode submenu */}
+                  {colorModeOpen && (
+                    <div
+                      className="
+        absolute
+        left-[140px]
+        top-0
+        z-[10000]
+        w-[115px]
+        rounded-md
+        border
+        border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+        py-1
+      "
+                    >
+                      <p className="px-3 py-1 text-[8px] text-[#777777]">
+                        Color Mode
+                      </p>
+
+                      {[
+                        { key: "amber", label: "Amber", color: "#f59e0b" },
+                        { key: "blue", label: "Blue", color: "#3b82f6" },
+                        { key: "pink", label: "Pink", color: "#ec4899" },
+                        { key: "rose", label: "Rose", color: "#f43f5e" },
+                        { key: "emerald", label: "Emerald", color: "#10b981" },
+                        { key: "black", label: "Black", color: "#111111" },
+                      ].map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() =>
+                            changeColorMode(
+                              item.key as
+                              | "amber"
+                              | "blue"
+                              | "pink"
+                              | "rose"
+                              | "emerald"
+                              | "black"
+                            )
+                          }
+                          className="
+            w-full
+            h-[28px]
+            px-3
+            flex
+            items-center
+            justify-between
+            text-[9px]
+            text-[#333333]
+            hover:bg-[#F5F5F5]
+            cursor-pointer
+          "
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="w-[8px] h-[8px] rounded-[1px]"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            {item.label}
+                          </span>
+
+                          {colorMode === item.key && <span>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Settings */}
                 <button
@@ -884,84 +1202,269 @@ export default function TasksPage() {
               )}
 
               {/* Filter */}
-              <div
-                ref={filterRef}
-                className="relative"
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowFilter((previous) => !previous);
-                    setFieldsOpen(false);
-                  }}
-                  className="
-                    w-7 h-7
-                    border border-[#E5E5E5]
-                    rounded-md
-                    flex items-center justify-center
-                    text-[#444444]
-                    bg-white
-                    hover:bg-[#E8E8E8]
-                    hover:border-[#CFCFCF]
-                    hover:text-black
-                    transition-all duration-150
-                  "
-                  title="Filter"
-                >
-                  <Filter
-                    size={12}
-                    strokeWidth={1.8}
-                  />
-                </button>
+<div
+  ref={filterRef}
+  className="relative"
+>
+  <button
+    type="button"
+    onClick={() => {
+      setShowFilter((previous) => !previous);
+      setFilterSubmenu(null);
+      setFieldsOpen(false);
+    }}
+    className="
+      w-7 h-7
+      border border-[#E5E5E5]
+      rounded-md
+      flex items-center justify-center
+      text-[#444444]
+      bg-white
+      hover:bg-[#E8E8E8]
+    "
+    title="Filter"
+  >
+    <Filter size={12} strokeWidth={1.8} />
+  </button>
 
-                {showFilter && (
-                  <div
-                    className="
-                      absolute
-                      right-0
-                      top-[34px]
-                      z-50
-                      w-[170px]
-                      rounded-md
-                      border border-[#E5E5E5]
-                      bg-white
-                      shadow-[0_4px_12px_rgba(0,0,0,0.08)]
-                      p-2
-                    "
-                  >
-                    <p className="px-2 py-1 text-[9px] font-medium text-gray-700">
-                      Priority
-                    </p>
+  {showFilter && (
+    <div
+      className="
+        absolute
+        right-0
+        top-[34px]
+        z-50
+        w-[120px]
+        rounded-md
+        border border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+        py-1
+      "
+    >
 
-                    {["All", "High", "Medium", "Low"].map(
-                      (priority) => (
-                        <button
-                          key={priority}
-                          type="button"
-                          onClick={() => {
-                            setPriorityFilter(priority);
-                            setShowFilter(false);
-                          }}
-                          className="
-                            w-full
-                            flex items-center justify-between
-                            px-2 py-1.5
-                            rounded
-                            text-[9px]
-                            hover:bg-gray-50
-                          "
-                        >
-                          <span>{priority}</span>
+      {/* STATUS */}
+      <FilterMenuItem
+        label="Status"
+        active={filterSubmenu === "status"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "status" ? null : "status"
+          )
+        }
+      />
 
-                          {priorityFilter === priority && (
-                            <span>✓</span>
-                          )}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
+      {filterSubmenu === "status" && (
+        <FilterSubmenu
+          title="Status"
+          value={statusFilter}
+          options={[
+            "All",
+            "To Do",
+            "Doing",
+            "Completed",
+            "On Hold",
+          ]}
+          onSelect={(value) => {
+            setStatusFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+      {/* PRIORITY */}
+      <FilterMenuItem
+        label="Priority"
+        active={filterSubmenu === "priority"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "priority" ? null : "priority"
+          )
+        }
+      />
+
+      {filterSubmenu === "priority" && (
+        <FilterSubmenu
+          title="Priority"
+          value={priorityFilter}
+          options={[
+            "All",
+            "Urgent",
+            "High",
+            "Medium",
+            "Low",
+          ]}
+          urgentOption="Urgent"
+          onSelect={(value) => {
+            setPriorityFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+      {/* MEMBERS */}
+      <FilterMenuItem
+        label="Members"
+        active={filterSubmenu === "members"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "members" ? null : "members"
+          )
+        }
+      />
+
+      {filterSubmenu === "members" && (
+        <FilterSubmenu
+          title="Members"
+          value={memberFilter}
+          options={[
+            "All",
+            "Admin",
+            "CN",
+            "QA Team",
+            "Designer",
+            "Developer",
+            "Security",
+          ]}
+          onSelect={(value) => {
+            setMemberFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+      {/* DUE DATE */}
+      <FilterMenuItem
+        label="Due Date"
+        active={filterSubmenu === "dueDate"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "dueDate" ? null : "dueDate"
+          )
+        }
+      />
+
+      {filterSubmenu === "dueDate" && (
+        <FilterSubmenu
+          title="Due Date"
+          value={dueDateFilter}
+          options={[
+            "All",
+            "Today",
+            "Tomorrow",
+            "This Week",
+            "Overdue",
+            "No Due Date",
+          ]}
+          onSelect={(value) => {
+            setDueDateFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+      {/* TEAMS */}
+      <FilterMenuItem
+        label="Teams"
+        active={filterSubmenu === "teams"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "teams" ? null : "teams"
+          )
+        }
+      />
+
+      {filterSubmenu === "teams" && (
+        <FilterSubmenu
+          title="Teams"
+          value={teamFilter}
+          options={[
+            "All",
+            "Development",
+            "Design",
+            "QA",
+            "Security",
+          ]}
+          onSelect={(value) => {
+            setTeamFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+      {/* LABELS */}
+      <FilterMenuItem
+        label="Labels"
+        active={filterSubmenu === "labels"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "labels" ? null : "labels"
+          )
+        }
+      />
+
+      {filterSubmenu === "labels" && (
+        <FilterSubmenu
+          title="Labels"
+          value={labelFilter}
+          options={[
+            "All",
+            "Research",
+            "Development",
+            "Design",
+            "Testing",
+            "Deployment",
+            "Review",
+            "Audit",
+          ]}
+          onSelect={(value) => {
+            setLabelFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+      {/* REPORTER */}
+      <FilterMenuItem
+        label="Reporter"
+        active={filterSubmenu === "reporter"}
+        onClick={() =>
+          setFilterSubmenu(
+            filterSubmenu === "reporter" ? null : "reporter"
+          )
+        }
+      />
+
+      {filterSubmenu === "reporter" && (
+        <FilterSubmenu
+          title="Reporter"
+          value={reporterFilter}
+          options={[
+            "All",
+            "Admin",
+            "CN",
+            "QA Team",
+            "Designer",
+            "Developer",
+            "Security",
+          ]}
+          onSelect={(value) => {
+            setReporterFilter(value);
+            setShowFilter(false);
+            setFilterSubmenu(null);
+          }}
+        />
+      )}
+
+    </div>
+  )}
+</div>
 
               {/* Add Task */}
               <button
@@ -1231,7 +1734,7 @@ export default function TasksPage() {
                             {/* Members */}
                             {visibleFields.members && (
                               <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center shrink-0">
+                                <div className="w-5 h-5 rounded-full bg-[var(--accent-color)] flex items-center justify-center shrink-0">
                                   <UserRound
                                     size={9}
                                     className="text-white"
@@ -1538,6 +2041,114 @@ export default function TasksPage() {
     </div>
   );
 }
+/* ================= FILTER MENU ITEM ================= */
+
+function FilterMenuItem({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="
+        w-full
+        h-[28px]
+        px-3
+        flex
+        items-center
+        justify-between
+        text-[9px]
+        text-[#333333]
+        hover:bg-[#F5F5F5]
+      "
+    >
+      <span>{label}</span>
+
+      <ChevronRight
+        size={10}
+        strokeWidth={1.5}
+      />
+    </button>
+  );
+}
+
+
+/* ================= FILTER SUBMENU ================= */
+
+function FilterSubmenu({
+  title,
+  value,
+  options,
+  onSelect,
+  urgentOption,
+}: {
+  title: string;
+  value: string;
+  options: string[];
+  onSelect: (value: string) => void;
+  urgentOption?: string;
+}) {
+  return (
+    <div
+      className="
+        absolute
+        right-[118px]
+        top-0
+        z-[60]
+        w-[120px]
+        rounded-md
+        border
+        border-[#E5E5E5]
+        bg-white
+        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+        py-1
+      "
+    >
+      <div className="px-3 py-1 text-[8px] text-[#777777]">
+        {title}
+      </div>
+
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onSelect(option)}
+          className="
+            w-full
+            h-[28px]
+            px-3
+            flex
+            items-center
+            justify-between
+            text-[9px]
+            text-[#333333]
+            hover:bg-[#F5F5F5]
+          "
+        >
+          <span
+            className={
+              option === urgentOption
+                ? "text-red-500"
+                : ""
+            }
+          >
+            {option}
+          </span>
+
+          {value === option && (
+            <span>✓</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ================= FIELD OPTION ================= */
 
@@ -1793,7 +2404,7 @@ function TaskCard({
                   className="
                   w-4 h-4
                   rounded-full
-                  bg-purple-500
+                  bg-[var(--accent-color)]
                   flex
                   items-center
                   justify-center
