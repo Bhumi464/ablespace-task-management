@@ -17,7 +17,7 @@ import {
     Moon,
     Settings,
     ChevronRight,
-Check,
+    Check,
 } from "lucide-react";
 
 type Project = {
@@ -28,6 +28,21 @@ type Project = {
     dueDate: string;
 };
 const THEME_KEY = "ablespace-theme";
+const PROFILE_KEY = "ablespace-profile";
+
+type Profile = {
+    email: string;
+    fullName: string;
+    title: string;
+    username: string;
+};
+
+const defaultProfile: Profile = {
+    email: "Dexter@gmail.com",
+    fullName: "Dexter",
+    title: "Designer",
+    username: "Dexuser",
+};
 const PROJECTS_KEY = "ablespace-projects";
 const initialProjects: Project[] = [
     {
@@ -56,24 +71,24 @@ const initialProjects: Project[] = [
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>(initialProjects);
 
-useEffect(() => {
-    const savedProjects = localStorage.getItem(PROJECTS_KEY);
+    useEffect(() => {
+        const savedProjects = localStorage.getItem(PROJECTS_KEY);
 
-    if (savedProjects) {
-        try {
-            setProjects(JSON.parse(savedProjects));
-        } catch {
-            setProjects(initialProjects);
+        if (savedProjects) {
+            try {
+                setProjects(JSON.parse(savedProjects));
+            } catch {
+                setProjects(initialProjects);
+            }
+        } else {
+            localStorage.setItem(
+                PROJECTS_KEY,
+                JSON.stringify(initialProjects)
+            );
         }
-    } else {
-        localStorage.setItem(
-            PROJECTS_KEY,
-            JSON.stringify(initialProjects)
-        );
-    }
-}, []);
-const [leadFilter, setLeadFilter] = useState("All");
-const [dueDateFilter, setDueDateFilter] = useState("All");
+    }, []);
+    const [leadFilter, setLeadFilter] = useState("All");
+    const [dueDateFilter, setDueDateFilter] = useState("All");
     const [search, setSearch] = useState("");
     const [showSearch, setShowSearch] = useState(false);
 
@@ -93,12 +108,52 @@ const [dueDateFilter, setDueDateFilter] = useState("All");
     });
 
     const [profileOpen, setProfileOpen] = useState(false);
-const [themeOpen, setThemeOpen] = useState(false);
-const [colorModeOpen, setColorModeOpen] = useState(false);
+    const [themeOpen, setThemeOpen] = useState(false);
+    const [colorModeOpen, setColorModeOpen] = useState(false);
 
-const [colorMode, setColorMode] = useState<
-  "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
->("blue");
+    const [profile, setProfile] = useState<Profile>(defaultProfile);
+
+    useEffect(() => {
+        const loadProfile = () => {
+            const savedProfile = localStorage.getItem(PROFILE_KEY);
+
+            if (!savedProfile) {
+                setProfile(defaultProfile);
+                return;
+            }
+
+            try {
+                setProfile({
+                    ...defaultProfile,
+                    ...JSON.parse(savedProfile),
+                });
+            } catch {
+                setProfile(defaultProfile);
+            }
+        };
+
+        loadProfile();
+
+        window.addEventListener(
+            "ablespace-profile-updated",
+            loadProfile
+        );
+
+        window.addEventListener("storage", loadProfile);
+
+        return () => {
+            window.removeEventListener(
+                "ablespace-profile-updated",
+                loadProfile
+            );
+
+            window.removeEventListener("storage", loadProfile);
+        };
+    }, []);
+
+    const [colorMode, setColorMode] = useState<
+        "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
+    >("purple");
     const [theme, setTheme] = useState<"light" | "dark">("light");
 
     useEffect(() => {
@@ -162,279 +217,282 @@ const [colorMode, setColorMode] = useState<
     };
 
     const changeColorMode = (
-  newColor: "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
-) => {
-  setColorMode(newColor);
+        newColor: "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
+    ) => {
+        setColorMode(newColor);
 
-  localStorage.setItem("ablespace-color-mode", newColor);
+        localStorage.setItem("ablespace-color-mode", newColor);
 
-  const colors = {
-    amber: "#f59e0b",
-    blue: "#3b82f6",
-    pink: "#ec4899",
-    rose: "#f43f5e",
-    emerald: "#10b981",
-    black: "#111111",
-  };
+        const colors = {
+            amber: "#f59e0b",
+            blue: "#3b82f6",
+            pink: "#ec4899",
+            rose: "#f43f5e",
+            emerald: "#10b981",
+            black: "#111111",
+            purple: "#ac05fa",
+        };
 
-  document.documentElement.style.setProperty(
-    "--accent-color",
-    colors[newColor]
-  );
+        document.documentElement.style.setProperty(
+            "--accent-color",
+            colors[newColor]
+        );
 
-  window.dispatchEvent(
-    new CustomEvent("ablespace-color-mode-updated", {
-      detail: newColor,
-    })
-  );
+        window.dispatchEvent(
+            new CustomEvent("ablespace-color-mode-updated", {
+                detail: newColor,
+            })
+        );
 
-  setColorModeOpen(false);
-};
+        setColorModeOpen(false);
+    };
 
-useEffect(() => {
-  const colors = {
-    amber: "#f59e0b",
-    blue: "#3b82f6",
-    pink: "#ec4899",
-    rose: "#f43f5e",
-    emerald: "#10b981",
-    black: "#111111",
-  };
+    useEffect(() => {
+        const colors = {
+            amber: "#f59e0b",
+            blue: "#3b82f6",
+            pink: "#ec4899",
+            rose: "#f43f5e",
+            emerald: "#10b981",
+            black: "#111111",
+            purple: "#ac05fa",
+        };
 
-  const applyColorMode = (savedColor: string | null) => {
-    const selected =
-      savedColor === "amber" ||
-      savedColor === "blue" ||
-      savedColor === "pink" ||
-      savedColor === "rose" ||
-      savedColor === "emerald" ||
-      savedColor === "black"
-        ? savedColor
-        : "blue";
+        const applyColorMode = (savedColor: string | null) => {
+            const selected =
+                savedColor === "amber" ||
+                    savedColor === "blue" ||
+                    savedColor === "pink" ||
+                    savedColor === "rose" ||
+                    savedColor === "emerald" ||
+                    savedColor === "black" ||
+                    savedColor === "purple"
+                    ? savedColor
+                    : "purple";
 
-    setColorMode(selected);
+            setColorMode(selected);
 
-    document.documentElement.style.setProperty(
-      "--accent-color",
-      colors[selected]
-    );
-  };
+            document.documentElement.style.setProperty(
+                "--accent-color",
+                colors[selected]
+            );
+        };
 
-  applyColorMode(localStorage.getItem("ablespace-color-mode"));
+        applyColorMode(localStorage.getItem("ablespace-color-mode"));
 
-  const handleColorModeUpdated = (event: Event) => {
-    const customEvent = event as CustomEvent<
-      "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
-    >;
+        const handleColorModeUpdated = (event: Event) => {
+            const customEvent = event as CustomEvent<
+                "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
+            >;
 
-    applyColorMode(customEvent.detail);
-  };
+            applyColorMode(customEvent.detail);
+        };
 
-  window.addEventListener(
-    "ablespace-color-mode-updated",
-    handleColorModeUpdated
-  );
+        window.addEventListener(
+            "ablespace-color-mode-updated",
+            handleColorModeUpdated
+        );
 
-  window.addEventListener("storage", (event) => {
-    if (event.key === "ablespace-color-mode") {
-      applyColorMode(event.newValue);
-    }
-  });
+        window.addEventListener("storage", (event) => {
+            if (event.key === "ablespace-color-mode") {
+                applyColorMode(event.newValue);
+            }
+        });
 
-  return () => {
-    window.removeEventListener(
-      "ablespace-color-mode-updated",
-      handleColorModeUpdated
-    );
-  };
-}, []);
+        return () => {
+            window.removeEventListener(
+                "ablespace-color-mode-updated",
+                handleColorModeUpdated
+            );
+        };
+    }, []);
 
     const filterRef = useRef<HTMLDivElement>(null);
-const profileRef = useRef<HTMLDivElement>(null);
+    const profileRef = useRef<HTMLDivElement>(null);
 
     /* --------------------------------
        Close dropdowns when clicking outside
     -------------------------------- */
 
     useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        const target = event.target as Node;
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node;
 
-        // Close filter when clicking outside
-        if (
-            filterRef.current &&
-            !filterRef.current.contains(target)
-        ) {
-            setShowFilter(false);
-        }
+            // Close filter when clicking outside
+            if (
+                filterRef.current &&
+                !filterRef.current.contains(target)
+            ) {
+                setShowFilter(false);
+            }
 
-        // Close Dexter menu when clicking outside
-        if (
-            profileRef.current &&
-            !profileRef.current.contains(target)
-        ) {
-            setProfileOpen(false);
-setThemeOpen(false);
-setColorModeOpen(false);
-        }
-    };
+            // Close Dexter menu when clicking outside
+            if (
+                profileRef.current &&
+                !profileRef.current.contains(target)
+            ) {
+                setProfileOpen(false);
+                setThemeOpen(false);
+                setColorModeOpen(false);
+            }
+        };
 
-    document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("mousedown", handleClickOutside);
 
-    return () => {
-        document.removeEventListener(
-            "mousedown",
-            handleClickOutside
-        );
-    };
-}, []);
+        return () => {
+            document.removeEventListener(
+                "mousedown",
+                handleClickOutside
+            );
+        };
+    }, []);
 
     /* --------------------------------
        Search + filter
     -------------------------------- */
 
     const filteredProjects = useMemo(() => {
-  const searchText = search.toLowerCase().trim();
+        const searchText = search.toLowerCase().trim();
 
-  return projects.filter((project) => {
-    const matchesSearch =
-      !searchText ||
-      project.name
-        .toLowerCase()
-        .includes(searchText) ||
-      project.lead
-        .toLowerCase()
-        .includes(searchText);
+        return projects.filter((project) => {
+            const matchesSearch =
+                !searchText ||
+                project.name
+                    .toLowerCase()
+                    .includes(searchText) ||
+                project.lead
+                    .toLowerCase()
+                    .includes(searchText);
 
-    const matchesPriority =
-      priorityFilter === "All" ||
-      project.priority === priorityFilter;
+            const matchesPriority =
+                priorityFilter === "All" ||
+                project.priority === priorityFilter;
 
-    const matchesLead =
-      leadFilter === "All" ||
-      project.lead === leadFilter;
+            const matchesLead =
+                leadFilter === "All" ||
+                project.lead === leadFilter;
 
-    const matchesDueDate = (() => {
-      if (dueDateFilter === "All") {
-        return true;
-      }
+            const matchesDueDate = (() => {
+                if (dueDateFilter === "All") {
+                    return true;
+                }
 
-      if (dueDateFilter === "No Due Date") {
-        return (
-          !project.dueDate ||
-          project.dueDate.trim() === ""
-        );
-      }
+                if (dueDateFilter === "No Due Date") {
+                    return (
+                        !project.dueDate ||
+                        project.dueDate.trim() === ""
+                    );
+                }
 
-      if (dueDateFilter === "Overdue") {
-        if (!project.dueDate) return false;
+                if (dueDateFilter === "Overdue") {
+                    if (!project.dueDate) return false;
 
-        const projectDate = new Date(project.dueDate);
-        const today = new Date();
+                    const projectDate = new Date(project.dueDate);
+                    const today = new Date();
 
-        if (Number.isNaN(projectDate.getTime())) {
-          return false;
-        }
+                    if (Number.isNaN(projectDate.getTime())) {
+                        return false;
+                    }
 
-        projectDate.setHours(0, 0, 0, 0);
-        today.setHours(0, 0, 0, 0);
+                    projectDate.setHours(0, 0, 0, 0);
+                    today.setHours(0, 0, 0, 0);
 
-        return projectDate < today;
-      }
+                    return projectDate < today;
+                }
 
-      return project.dueDate === dueDateFilter;
-    })();
+                return project.dueDate === dueDateFilter;
+            })();
 
-    return (
-      matchesSearch &&
-      matchesPriority &&
-      matchesLead &&
-      matchesDueDate
-    );
-  });
-}, [
-  projects,
-  search,
-  priorityFilter,
-  leadFilter,
-  dueDateFilter,
-]);
+            return (
+                matchesSearch &&
+                matchesPriority &&
+                matchesLead &&
+                matchesDueDate
+            );
+        });
+    }, [
+        projects,
+        search,
+        priorityFilter,
+        leadFilter,
+        dueDateFilter,
+    ]);
 
     /* --------------------------------
        Add project
     -------------------------------- */
 
-   const saveProject = () => {
-    if (!newProject.name.trim()) {
-        return;
-    }
+    const saveProject = () => {
+        if (!newProject.name.trim()) {
+            return;
+        }
 
-    if (editingProjectId !== null) {
-        setProjects((current) => {
-            const updatedProjects = current.map((project) =>
-                project.id === editingProjectId
-                    ? {
-                          ...project,
-                          name: newProject.name.trim(),
-                          priority: newProject.priority,
-                          lead: newProject.lead,
-                          dueDate:
-                              newProject.dueDate ||
-                              project.dueDate,
-                      }
-                    : project
-            );
+        if (editingProjectId !== null) {
+            setProjects((current) => {
+                const updatedProjects = current.map((project) =>
+                    project.id === editingProjectId
+                        ? {
+                            ...project,
+                            name: newProject.name.trim(),
+                            priority: newProject.priority,
+                            lead: newProject.lead,
+                            dueDate:
+                                newProject.dueDate ||
+                                project.dueDate,
+                        }
+                        : project
+                );
 
-            localStorage.setItem(
-                PROJECTS_KEY,
-                JSON.stringify(updatedProjects)
-            );
+                localStorage.setItem(
+                    PROJECTS_KEY,
+                    JSON.stringify(updatedProjects)
+                );
 
-            window.dispatchEvent(
-                new Event("ablespace-projects-updated")
-            );
+                window.dispatchEvent(
+                    new Event("ablespace-projects-updated")
+                );
 
-            return updatedProjects;
+                return updatedProjects;
+            });
+        } else {
+            const project: Project = {
+                id: Date.now(),
+                name: newProject.name.trim(),
+                priority: newProject.priority,
+                lead: newProject.lead,
+                dueDate:
+                    newProject.dueDate || "18 Sep 2026",
+            };
+
+            setProjects((current) => {
+                const updatedProjects = [
+                    ...current,
+                    project,
+                ];
+
+                localStorage.setItem(
+                    PROJECTS_KEY,
+                    JSON.stringify(updatedProjects)
+                );
+
+                window.dispatchEvent(
+                    new Event("ablespace-projects-updated")
+                );
+
+                return updatedProjects;
+            });
+        }
+
+        setNewProject({
+            name: "",
+            priority: "High",
+            lead: "Admin",
+            dueDate: "",
         });
-    } else {
-        const project: Project = {
-            id: Date.now(),
-            name: newProject.name.trim(),
-            priority: newProject.priority,
-            lead: newProject.lead,
-            dueDate:
-                newProject.dueDate || "18 Sep 2026",
-        };
 
-        setProjects((current) => {
-            const updatedProjects = [
-                ...current,
-                project,
-            ];
-
-            localStorage.setItem(
-                PROJECTS_KEY,
-                JSON.stringify(updatedProjects)
-            );
-
-            window.dispatchEvent(
-                new Event("ablespace-projects-updated")
-            );
-
-            return updatedProjects;
-        });
-    }
-
-    setNewProject({
-        name: "",
-        priority: "High",
-        lead: "Admin",
-        dueDate: "",
-    });
-
-    setEditingProjectId(null);
-    setShowAddProject(false);
-};
+        setEditingProjectId(null);
+        setShowAddProject(false);
+    };
 
     const handleEditProject = (project: Project) => {
         setNewProject({
@@ -447,24 +505,24 @@ setColorModeOpen(false);
         setShowAddProject(true);
     };
 
-   const handleDeleteProject = (projectId: number) => {
-    setProjects((current) => {
-        const updatedProjects = current.filter(
-            (project) => project.id !== projectId
-        );
+    const handleDeleteProject = (projectId: number) => {
+        setProjects((current) => {
+            const updatedProjects = current.filter(
+                (project) => project.id !== projectId
+            );
 
-        localStorage.setItem(
-            PROJECTS_KEY,
-            JSON.stringify(updatedProjects)
-        );
+            localStorage.setItem(
+                PROJECTS_KEY,
+                JSON.stringify(updatedProjects)
+            );
 
-        window.dispatchEvent(
-            new Event("ablespace-projects-updated")
-        );
+            window.dispatchEvent(
+                new Event("ablespace-projects-updated")
+            );
 
-        return updatedProjects;
-    });
-};
+            return updatedProjects;
+        });
+    };
 
     return (
         <div className="min-h-screen bg-white text-gray-900">
@@ -477,20 +535,20 @@ setColorModeOpen(false);
                 <aside className="w-[155px] shrink-0 border-r border-[#E5E5E5] bg-white">
 
                     {/* Dexter Profile */}
-<div
-    ref={profileRef}
-    className="relative h-[55px] px-4 flex items-center border-b border-[#E5E5E5]"
->
-    <button
-        type="button"
-        onClick={(event) => {
-            event.stopPropagation();
+                    <div
+                        ref={profileRef}
+                        className="relative h-[55px] px-4 flex items-center border-b border-[#E5E5E5]"
+                    >
+                        <button
+                            type="button"
+                            onClick={(event) => {
+                                event.stopPropagation();
 
-            setProfileOpen((prev) => !prev);
-setThemeOpen(false);
-setColorModeOpen(false);
-        }}
-        className="
+                                setProfileOpen((prev) => !prev);
+                                setThemeOpen(false);
+                                setColorModeOpen(false);
+                            }}
+                            className="
             w-full
             flex
             items-center
@@ -501,29 +559,29 @@ setColorModeOpen(false);
             cursor-pointer
             hover:bg-[#F5F5F5]
         "
-    >
-        <div className="flex items-center gap-2">
-            <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
-                <span className="text-[8px] font-medium text-white">
-                    D
-                </span>
-            </div>
+                        >
+                            <div className="flex items-center gap-2">
+                                <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
+                                    <span className="text-[8px] font-medium text-white">
+                                        {profile.fullName.charAt(0).toUpperCase() || "D"}
+                                    </span>
+                                </div>
 
-            <span className="text-[11px] font-semibold text-[#111111]">
-                Dexter
-            </span>
-        </div>
+                                <span className="text-[11px] font-semibold text-[#111111]">
+                                    {profile.fullName}
+                                </span>
+                            </div>
 
-        <ChevronDown
-            size={11}
-            strokeWidth={1.5}
-            className="text-[#555555]"
-        />
-    </button>
+                            <ChevronDown
+                                size={11}
+                                strokeWidth={1.5}
+                                className="text-[#555555]"
+                            />
+                        </button>
 
-    {profileOpen && (
-        <div
-            className="
+                        {profileOpen && (
+                            <div
+                                className="
                 absolute
                 left-[6px]
                 top-[50px]
@@ -535,37 +593,37 @@ setColorModeOpen(false);
                 bg-white
                 shadow-[0_4px_12px_rgba(0,0,0,0.12)]
             "
-        >
-            {/* Profile */}
-            <div className="px-3 py-3">
-                <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
-                        <span className="text-[12px] font-medium text-white">
-                            D
-                        </span>
-                    </div>
+                            >
+                                {/* Profile */}
+                                <div className="px-3 py-3">
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-8 h-8 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
+                                            <span className="text-[12px] font-medium text-white">
+                                                {profile.fullName.charAt(0).toUpperCase() || "D"}
+                                            </span>
+                                        </div>
 
-                    <p className="text-[10px] font-medium text-[#111111] mt-1">
-                        Dexter
-                    </p>
+                                        <p className="text-[10px] font-medium text-[#111111] mt-1">
+                                            {profile.fullName}
+                                        </p>
 
-                    <p className="text-[8px] text-[#777777]">
-                        Dexter@gmail.com
-                    </p>
-                </div>
-            </div>
+                                        <p className="text-[8px] text-[#777777]">
+                                            {profile.email}
+                                        </p>
+                                    </div>
+                                </div>
 
-            <div className="border-t border-[#EEEEEE]" />
+                                <div className="border-t border-[#EEEEEE]" />
 
-            {/* Change Theme */}
-            <div className="relative">
-                <button
-                    type="button"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        setThemeOpen((prev) => !prev);
-                    }}
-                    className="
+                                {/* Change Theme */}
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setThemeOpen((prev) => !prev);
+                                        }}
+                                        className="
                         w-full
                         h-[32px]
                         px-3
@@ -577,19 +635,19 @@ setColorModeOpen(false);
                         hover:bg-[#F5F5F5]
                         cursor-pointer
                     "
-                >
-                    <span className="flex items-center gap-2">
-                        <Sun size={11} />
-                        Change Theme
-                    </span>
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Sun size={11} />
+                                            Change Theme
+                                        </span>
 
-                    <span>›</span>
-                </button>
+                                        <span>›</span>
+                                    </button>
 
-                {/* Theme submenu */}
-                {themeOpen && (
-                    <div
-                        className="
+                                    {/* Theme submenu */}
+                                    {themeOpen && (
+                                        <div
+                                            className="
                             absolute
                             left-[140px]
                             top-0
@@ -602,15 +660,15 @@ setColorModeOpen(false);
                             shadow-[0_4px_12px_rgba(0,0,0,0.12)]
                             py-1
                         "
-                    >
-                        <p className="px-3 py-1 text-[8px] text-[#777777]">
-                            Theme
-                        </p>
+                                        >
+                                            <p className="px-3 py-1 text-[8px] text-[#777777]">
+                                                Theme
+                                            </p>
 
-                        <button
-    type="button"
-    onClick={() => changeTheme("light")}
-    className="
+                                            <button
+                                                type="button"
+                                                onClick={() => changeTheme("light")}
+                                                className="
         w-full
         px-3
         py-1.5
@@ -622,21 +680,21 @@ setColorModeOpen(false);
         hover:bg-[#F5F5F5]
         cursor-pointer
     "
->
-    <span className="flex items-center gap-2">
-        <Sun size={10} />
-        Light
-    </span>
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <Sun size={10} />
+                                                    Light
+                                                </span>
 
-    {theme === "light" && (
-        <span>✓</span>
-    )}
-</button>
+                                                {theme === "light" && (
+                                                    <span>✓</span>
+                                                )}
+                                            </button>
 
-                        <button
-    type="button"
-    onClick={() => changeTheme("dark")}
-    className="
+                                            <button
+                                                type="button"
+                                                onClick={() => changeTheme("dark")}
+                                                className="
         w-full
         px-3
         py-1.5
@@ -648,31 +706,31 @@ setColorModeOpen(false);
         hover:bg-[#F5F5F5]
         cursor-pointer
     "
->
-    <span className="flex items-center gap-2">
-        <Moon size={10} />
-        Dark
-    </span>
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <Moon size={10} />
+                                                    Dark
+                                                </span>
 
-    {theme === "dark" && (
-        <span>✓</span>
-    )}
-</button>
-                    </div>
-                )}
-            </div>
+                                                {theme === "dark" && (
+                                                    <span>✓</span>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
 
-            {/* Color Mode */}
-           {/* Color Mode */}
-<div className="relative">
-  <button
-    type="button"
-    onClick={(event) => {
-      event.stopPropagation();
-      setColorModeOpen((prev) => !prev);
-      setThemeOpen(false);
-    }}
-    className="
+                                {/* Color Mode */}
+                                {/* Color Mode */}
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setColorModeOpen((prev) => !prev);
+                                            setThemeOpen(false);
+                                        }}
+                                        className="
       w-full
       h-[32px]
       px-3
@@ -684,22 +742,22 @@ setColorModeOpen(false);
       hover:bg-[#F5F5F5]
       cursor-pointer
     "
-  >
-    <span className="flex items-center gap-2">
-      <span
-        className="w-[7px] h-[7px] rounded-[1px]"
-        style={{ backgroundColor: "var(--accent-color)" }}
-      />
-      <span>Color Mode</span>
-    </span>
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span
+                                                className="w-[7px] h-[7px] rounded-[1px]"
+                                                style={{ backgroundColor: "var(--accent-color)" }}
+                                            />
+                                            <span>Color Mode</span>
+                                        </span>
 
-    <span className="text-[10px]">›</span>
-  </button>
+                                        <span className="text-[10px]">›</span>
+                                    </button>
 
-  {/* Color Mode submenu */}
-  {colorModeOpen && (
-    <div
-      className="
+                                    {/* Color Mode submenu */}
+                                    {colorModeOpen && (
+                                        <div
+                                            className="
         absolute
         left-[140px]
         top-0
@@ -712,34 +770,36 @@ setColorModeOpen(false);
         shadow-[0_4px_12px_rgba(0,0,0,0.12)]
         py-1
       "
-    >
-      <p className="px-3 py-1 text-[8px] text-[#777777]">
-        Color Mode
-      </p>
+                                        >
+                                            <p className="px-3 py-1 text-[8px] text-[#777777]">
+                                                Color Mode
+                                            </p>
 
-      {[
-        { key: "amber", label: "Amber", color: "#f59e0b" },
-        { key: "blue", label: "Blue", color: "#3b82f6" },
-        { key: "pink", label: "Pink", color: "#ec4899" },
-        { key: "rose", label: "Rose", color: "#f43f5e" },
-        { key: "emerald", label: "Emerald", color: "#10b981" },
-        { key: "black", label: "Black", color: "#111111" },
-      ].map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          onClick={() =>
-            changeColorMode(
-              item.key as
-                | "amber"
-                | "blue"
-                | "pink"
-                | "rose"
-                | "emerald"
-                | "black"
-            )
-          }
-          className="
+                                            {[
+                                                { key: "amber", label: "Amber", color: "#f59e0b" },
+                                                { key: "blue", label: "Blue", color: "#3b82f6" },
+                                                { key: "pink", label: "Pink", color: "#ec4899" },
+                                                { key: "rose", label: "Rose", color: "#f43f5e" },
+                                                { key: "emerald", label: "Emerald", color: "#10b981" },
+                                                { key: "black", label: "Black", color: "#111111" },
+                                                { key: "purple", label: "Purple", color: "#ac05fa" },
+                                            ].map((item) => (
+                                                <button
+                                                    key={item.key}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        changeColorMode(
+                                                            item.key as
+                                                            | "amber"
+                                                            | "blue"
+                                                            | "pink"
+                                                            | "rose"
+                                                            | "emerald"
+                                                            | "black"
+                                                            | "purple"
+                                                        )
+                                                    }
+                                                    className="
             w-full
             h-[28px]
             px-3
@@ -751,47 +811,40 @@ setColorModeOpen(false);
             hover:bg-[#F5F5F5]
             cursor-pointer
           "
-        >
-          <span className="flex items-center gap-2">
-            <span
-              className="w-[8px] h-[8px] rounded-[1px]"
-              style={{ backgroundColor: item.color }}
-            />
-            {item.label}
-          </span>
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        <span
+                                                            className="w-[8px] h-[8px] rounded-[1px]"
+                                                            style={{ backgroundColor: item.color }}
+                                                        />
+                                                        {item.label}
+                                                    </span>
 
-          {colorMode === item.key && <span>✓</span>}
-        </button>
-      ))}
-    </div>
-  )}
-</div>
+                                                    {colorMode === item.key && <span>✓</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
 
-            {/* Settings */}
-            <button
-                type="button"
-                onClick={() => {
-                    window.location.href = "/settings";
-                }}
-                className="
-                    w-full
-                    h-[32px]
-                    px-3
-                    flex
-                    items-center
-                    gap-2
-                    text-[9px]
-                    text-[#333333]
-                    hover:bg-[#F5F5F5]
-                    cursor-pointer
-                "
-            >
-                <Settings size={11} />
-                Settings
-            </button>
-        </div>
-    )}
-</div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        window.location.href = "/settings";
+                                    }}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
+                                >
+                                    <Settings
+                                        size={12}
+                                        strokeWidth={1.5}
+                                        className="text-[#555555]"
+                                    />
+
+                                    <span>Settings</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
 
                     {/* Workspace */}
 
@@ -951,14 +1004,14 @@ setColorModeOpen(false);
                             )}
 
                             {/* FILTER */}
-<div ref={filterRef} className="relative">
-  <button
-    type="button"
-    onClick={() => {
-      setShowFilter((previous) => !previous);
-      setFilterSubmenu(null);
-    }}
-    className="
+                            <div ref={filterRef} className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowFilter((previous) => !previous);
+                                        setFilterSubmenu(null);
+                                    }}
+                                    className="
       w-7 h-7
       border border-[#E5E5E5]
       rounded-md
@@ -966,13 +1019,13 @@ setColorModeOpen(false);
       bg-white
       hover:bg-[#F5F5F5]
     "
-  >
-    <Filter size={12} strokeWidth={1.8} />
-  </button>
+                                >
+                                    <Filter size={12} strokeWidth={1.8} />
+                                </button>
 
-  {showFilter && (
-    <div
-      className="
+                                {showFilter && (
+                                    <div
+                                        className="
         absolute
         right-0
         top-[34px]
@@ -984,106 +1037,106 @@ setColorModeOpen(false);
         shadow-[0_4px_12px_rgba(0,0,0,0.12)]
         py-1
       "
-    >
+                                    >
 
-      {/* Priority */}
-      <FilterMenuItem
-        label="Priority"
-        active={filterSubmenu === "priority"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "priority"
-              ? null
-              : "priority"
-          )
-        }
-      />
+                                        {/* Priority */}
+                                        <FilterMenuItem
+                                            label="Priority"
+                                            active={filterSubmenu === "priority"}
+                                            onClick={() =>
+                                                setFilterSubmenu(
+                                                    filterSubmenu === "priority"
+                                                        ? null
+                                                        : "priority"
+                                                )
+                                            }
+                                        />
 
-      {filterSubmenu === "priority" && (
-        <FilterSubmenu
-          title="Priority"
-          value={priorityFilter}
-          options={[
-            "All",
-            "Urgent",
-            "High",
-            "Medium",
-            "Low",
-          ]}
-          urgentOption="Urgent"
-          onSelect={(value) => {
-            setPriorityFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                                        {filterSubmenu === "priority" && (
+                                            <FilterSubmenu
+                                                title="Priority"
+                                                value={priorityFilter}
+                                                options={[
+                                                    "All",
+                                                    "Urgent",
+                                                    "High",
+                                                    "Medium",
+                                                    "Low",
+                                                ]}
+                                                urgentOption="Urgent"
+                                                onSelect={(value) => {
+                                                    setPriorityFilter(value);
+                                                    setShowFilter(false);
+                                                    setFilterSubmenu(null);
+                                                }}
+                                            />
+                                        )}
 
-      {/* Lead */}
-      <FilterMenuItem
-        label="Lead"
-        active={filterSubmenu === "lead"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "lead"
-              ? null
-              : "lead"
-          )
-        }
-      />
+                                        {/* Lead */}
+                                        <FilterMenuItem
+                                            label="Lead"
+                                            active={filterSubmenu === "lead"}
+                                            onClick={() =>
+                                                setFilterSubmenu(
+                                                    filterSubmenu === "lead"
+                                                        ? null
+                                                        : "lead"
+                                                )
+                                            }
+                                        />
 
-      {filterSubmenu === "lead" && (
-        <FilterSubmenu
-          title="Lead"
-          value={leadFilter}
-          options={[
-            "All",
-            "Admin",
-            "CN",
-          ]}
-          onSelect={(value) => {
-            setLeadFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                                        {filterSubmenu === "lead" && (
+                                            <FilterSubmenu
+                                                title="Lead"
+                                                value={leadFilter}
+                                                options={[
+                                                    "All",
+                                                    "Admin",
+                                                    "CN",
+                                                ]}
+                                                onSelect={(value) => {
+                                                    setLeadFilter(value);
+                                                    setShowFilter(false);
+                                                    setFilterSubmenu(null);
+                                                }}
+                                            />
+                                        )}
 
-      {/* Due Date */}
-      <FilterMenuItem
-        label="Due Date"
-        active={filterSubmenu === "dueDate"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "dueDate"
-              ? null
-              : "dueDate"
-          )
-        }
-      />
+                                        {/* Due Date */}
+                                        <FilterMenuItem
+                                            label="Due Date"
+                                            active={filterSubmenu === "dueDate"}
+                                            onClick={() =>
+                                                setFilterSubmenu(
+                                                    filterSubmenu === "dueDate"
+                                                        ? null
+                                                        : "dueDate"
+                                                )
+                                            }
+                                        />
 
-      {filterSubmenu === "dueDate" && (
-        <FilterSubmenu
-          title="Due Date"
-          value={dueDateFilter}
-          options={[
-            "All",
-            "Today",
-            "Tomorrow",
-            "This Week",
-            "Overdue",
-            "No Due Date",
-          ]}
-          onSelect={(value) => {
-            setDueDateFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
-    </div>
-  )}
-</div>
+                                        {filterSubmenu === "dueDate" && (
+                                            <FilterSubmenu
+                                                title="Due Date"
+                                                value={dueDateFilter}
+                                                options={[
+                                                    "All",
+                                                    "Today",
+                                                    "Tomorrow",
+                                                    "This Week",
+                                                    "Overdue",
+                                                    "No Due Date",
+                                                ]}
+                                                onSelect={(value) => {
+                                                    setDueDateFilter(value);
+                                                    setShowFilter(false);
+                                                    setFilterSubmenu(null);
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Add Project */}
 
@@ -1181,11 +1234,11 @@ setColorModeOpen(false);
                                         {/* Project */}
 
                                         <Link
-    href={`/projects/${project.id}`}
-    className="text-[10px] font-medium text-[#222222] truncate hover:underline"
->
-    {project.name}
-</Link>
+                                            href={`/projects/${project.id}`}
+                                            className="text-[10px] font-medium text-[#222222] truncate hover:underline"
+                                        >
+                                            {project.name}
+                                        </Link>
 
                                         {/* Priority */}
 
@@ -1553,19 +1606,19 @@ setColorModeOpen(false);
 }
 
 function FilterMenuItem({
-  label,
-  active,
-  onClick,
+    label,
+    active,
+    onClick,
 }: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
+    label: string;
+    active: boolean;
+    onClick: () => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="
         w-full
         h-[28px]
         px-3
@@ -1576,33 +1629,33 @@ function FilterMenuItem({
         text-[#333333]
         hover:bg-[#F5F5F5]
       "
-    >
-      <span>{label}</span>
+        >
+            <span>{label}</span>
 
-      <ChevronRight
-        size={10}
-        strokeWidth={1.5}
-      />
-    </button>
-  );
+            <ChevronRight
+                size={10}
+                strokeWidth={1.5}
+            />
+        </button>
+    );
 }
 
 function FilterSubmenu({
-  title,
-  value,
-  options,
-  onSelect,
-  urgentOption,
+    title,
+    value,
+    options,
+    onSelect,
+    urgentOption,
 }: {
-  title: string;
-  value: string;
-  options: string[];
-  onSelect: (value: string) => void;
-  urgentOption?: string;
+    title: string;
+    value: string;
+    options: string[];
+    onSelect: (value: string) => void;
+    urgentOption?: string;
 }) {
-  return (
-    <div
-      className="
+    return (
+        <div
+            className="
         absolute
         right-[118px]
         top-0
@@ -1614,17 +1667,17 @@ function FilterSubmenu({
         shadow-[0_4px_12px_rgba(0,0,0,0.12)]
         py-1
       "
-    >
-      <div className="px-3 py-1 text-[8px] text-[#777777]">
-        {title}
-      </div>
+        >
+            <div className="px-3 py-1 text-[8px] text-[#777777]">
+                {title}
+            </div>
 
-      {options.map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onSelect(option)}
-          className="
+            {options.map((option) => (
+                <button
+                    key={option}
+                    type="button"
+                    onClick={() => onSelect(option)}
+                    className="
             w-full
             h-[28px]
             px-3
@@ -1635,24 +1688,24 @@ function FilterSubmenu({
             text-[#333333]
             hover:bg-[#F5F5F5]
           "
-        >
-          <span
-            className={
-              option === urgentOption
-                ? "text-red-500"
-                : ""
-            }
-          >
-            {option}
-          </span>
+                >
+                    <span
+                        className={
+                            option === urgentOption
+                                ? "text-red-500"
+                                : ""
+                        }
+                    >
+                        {option}
+                    </span>
 
-          {value === option && (
-            <span>✓</span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
+                    {value === option && (
+                        <span>✓</span>
+                    )}
+                </button>
+            ))}
+        </div>
+    );
 }
 
 /* =========================================================

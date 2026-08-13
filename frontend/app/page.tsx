@@ -1,5 +1,5 @@
 "use client";
-
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -9,9 +9,11 @@ export default function LoginPage() {
     router.push("/tasks");
   };
 
-  const handleGoogleLogin = () => {
-    alert("Google login will be connected later.");
-  };
+  const handleGoogleLogin = async () => {
+  await signIn("google", {
+    callbackUrl: "/tasks",
+  });
+};
 
   return (
     <main className="min-h-screen w-full bg-white flex justify-center">

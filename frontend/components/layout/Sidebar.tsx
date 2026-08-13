@@ -224,17 +224,21 @@ export default function Sidebar() {
               )}
             </div>
 
-            {/* Settings */}
             <button
-              type="button"
-              onClick={() => {
-                window.location.href = "/settings";
-              }}
-              className="w-full h-[32px] px-3 flex items-center gap-2 text-[9px] text-[#333333] hover:bg-[#F5F5F5] cursor-pointer"
-            >
-              <Settings size={11} strokeWidth={1.7} />
-              Settings
-            </button>
+    type="button"
+    onClick={() => {
+        window.location.href = "/settings";
+    }}
+    className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
+>
+    <Settings
+        size={12}
+        strokeWidth={1.5}
+        className="text-[#555555]"
+    />
+
+    <span>Settings</span>
+</button>
           </div>
         )}
       </div>

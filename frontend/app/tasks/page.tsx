@@ -13,6 +13,7 @@ import {
   Search,
   UserRound,
   LayoutGrid,
+  Settings,
   PanelLeft,
   Check,
 } from "lucide-react";
@@ -41,6 +42,21 @@ function getListGridTemplate(visibleFields: {
   return `minmax(250px,1fr) ${fieldColumns.join(" ")} 50px`;
 }
 const THEME_KEY = "ablespace-theme";
+const PROFILE_KEY = "ablespace-profile";
+
+type Profile = {
+  email: string;
+  fullName: string;
+  title: string;
+  username: string;
+};
+
+const defaultProfile: Profile = {
+  email: "Dexter@gmail.com",
+  fullName: "Dexter",
+  title: "Designer",
+  username: "Dexuser",
+};
 const columns = [
   {
     title: "To Do",
@@ -75,6 +91,7 @@ export default function TasksPage() {
   });
 
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Keep task cards synced with saved edits from the task details page.
   const [taskList, setTaskList] = useState(tasks);
@@ -152,7 +169,7 @@ export default function TasksPage() {
   };
 
   const changeColorMode = (
-    newColor: "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+    newColor: "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
   ) => {
     setColorMode(newColor);
 
@@ -165,6 +182,7 @@ export default function TasksPage() {
       rose: "#f43f5e",
       emerald: "#10b981",
       black: "#111111",
+      purple: "#ac05fa",
     };
 
     document.documentElement.style.setProperty(
@@ -188,6 +206,7 @@ export default function TasksPage() {
       rose: "#f43f5e",
       emerald: "#10b981",
       black: "#111111",
+      purple: "#ac05fa",
     };
 
     const applyColorMode = (savedColor: string | null) => {
@@ -197,9 +216,10 @@ export default function TasksPage() {
           savedColor === "pink" ||
           savedColor === "rose" ||
           savedColor === "emerald" ||
-          savedColor === "black"
+          savedColor === "black" || 
+          savedColor === "purple"
           ? savedColor
-          : "blue";
+          : "purple";
 
       setColorMode(selected);
 
@@ -213,7 +233,7 @@ export default function TasksPage() {
 
     const handleColorModeUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<
-        "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
+        "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
       >;
 
       applyColorMode(customEvent.detail);
@@ -285,9 +305,49 @@ const [reporterFilter, setReporterFilter] = useState("All");
   const [themeOpen, setThemeOpen] = useState(false);
   const [colorModeOpen, setColorModeOpen] = useState(false);
 
+  const [profile, setProfile] = useState<Profile>(defaultProfile);
+
+  useEffect(() => {
+    const loadProfile = () => {
+      const savedProfile = localStorage.getItem(PROFILE_KEY);
+
+      if (!savedProfile) {
+        setProfile(defaultProfile);
+        return;
+      }
+
+      try {
+        setProfile({
+          ...defaultProfile,
+          ...JSON.parse(savedProfile),
+        });
+      } catch {
+        setProfile(defaultProfile);
+      }
+    };
+
+    loadProfile();
+
+    window.addEventListener(
+      "ablespace-profile-updated",
+      loadProfile
+    );
+
+    window.addEventListener("storage", loadProfile);
+
+    return () => {
+      window.removeEventListener(
+        "ablespace-profile-updated",
+        loadProfile
+      );
+
+      window.removeEventListener("storage", loadProfile);
+    };
+  }, []);
+
   const [colorMode, setColorMode] = useState<
-    "amber" | "blue" | "pink" | "rose" | "emerald" | "black"
-  >("blue");
+    "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
+  >("purple");
 
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -651,12 +711,12 @@ const [reporterFilter, setReporterFilter] = useState("All");
               <div className="flex items-center gap-2">
                 <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
                   <span className="text-[8px] font-medium text-white">
-                    D
+                    {profile.fullName.charAt(0).toUpperCase() || "D"}
                   </span>
                 </div>
 
                 <span className="text-[11px] font-semibold text-[#111111]">
-                  Dexter
+                  {profile.fullName}
                 </span>
               </div>
 
@@ -694,11 +754,11 @@ const [reporterFilter, setReporterFilter] = useState("All");
                     </div>
 
                     <p className="text-[10px] font-medium text-[#111111] mt-1">
-                      Dexter
+                      {profile.fullName}
                     </p>
 
                     <p className="text-[8px] text-[#777777]">
-                      Dexter@gmail.com
+                      {profile.email}
                     </p>
                   </div>
                 </div>
@@ -856,78 +916,69 @@ const [reporterFilter, setReporterFilter] = useState("All");
                       <p className="px-3 py-1 text-[8px] text-[#777777]">
                         Color Mode
                       </p>
+                      {
+                      [
+  { key: "amber", label: "Amber", color: "#f59e0b" },
+  { key: "blue", label: "Blue", color: "#3b82f6" },
+  { key: "pink", label: "Pink", color: "#ec4899" },
+  { key: "rose", label: "Rose", color: "#f43f5e" },
+  { key: "emerald", label: "Emerald", color: "#10b981" },
+  { key: "black", label: "Black", color: "#111111" },
+  { key: "purple", label: "Purple", color: "#ac05fa" },
+].map((item) => (
+  <button
+    key={item.key}
+    type="button"
+    onClick={() => {
+  changeColorMode(
+    item.key as
+      | "amber"
+      | "blue"
+      | "pink"
+      | "rose"
+      | "emerald"
+      | "black"
+      | "purple"
+  );
+}}
+    className="w-full h-[28px] px-3 flex items-center justify-between text-left text-[9px] hover:bg-[#F5F5F5]"
+  >
+    <span className="flex items-center gap-2">
+      <span
+        className="w-[8px] h-[8px] rounded-[1px]"
+        style={{
+          backgroundColor: item.color,
+        }}
+      />
 
-                      {[
-                        { key: "amber", label: "Amber", color: "#f59e0b" },
-                        { key: "blue", label: "Blue", color: "#3b82f6" },
-                        { key: "pink", label: "Pink", color: "#ec4899" },
-                        { key: "rose", label: "Rose", color: "#f43f5e" },
-                        { key: "emerald", label: "Emerald", color: "#10b981" },
-                        { key: "black", label: "Black", color: "#111111" },
-                      ].map((item) => (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() =>
-                            changeColorMode(
-                              item.key as
-                              | "amber"
-                              | "blue"
-                              | "pink"
-                              | "rose"
-                              | "emerald"
-                              | "black"
-                            )
-                          }
-                          className="
-            w-full
-            h-[28px]
-            px-3
-            flex
-            items-center
-            justify-between
-            text-[9px]
-            text-[#333333]
-            hover:bg-[#F5F5F5]
-            cursor-pointer
-          "
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="w-[8px] h-[8px] rounded-[1px]"
-                              style={{ backgroundColor: item.color }}
-                            />
-                            {item.label}
-                          </span>
+      {item.label}
+    </span>
 
-                          {colorMode === item.key && <span>✓</span>}
-                        </button>
-                      ))}
+    {colorMode === item.key && (
+      <Check size={10} />
+    )}
+  </button>
+))
+                      }
                     </div>
                   )}
                 </div>
 
-                {/* Settings */}
                 <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = "/settings";
-                  }}
-                  className="
-          w-full
-          h-[32px]
-          px-3
-          flex
-          items-center
-          gap-2
-          text-[9px]
-          text-[#333333]
-          hover:bg-[#F5F5F5]
-        "
-                >
-                  ⚙
-                  <span>Settings</span>
-                </button>
+    type="button"
+    onClick={() => {
+        window.location.href = "/settings";
+    }}
+    className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
+>
+    <Settings
+        size={12}
+        strokeWidth={1.5}
+        className="text-[#555555]"
+    />
+
+    <span>Settings</span>
+</button>
               </div>
             )}
           </div>
@@ -1020,26 +1071,75 @@ const [reporterFilter, setReporterFilter] = useState("All");
             >
 
               {/* Search */}
-              <button
-                type="button"
-                className="
-                  w-7 h-7
-                  border border-[#E5E5E5]
-                  rounded-md
-                  flex items-center justify-center
-                  text-[#444444]
-                  bg-white
-                  hover:bg-[#E8E8E8]
-                  hover:border-[#CFCFCF]
-                  hover:text-black
-                  transition-all duration-150
-                "
-              >
-                <Search
-                  size={13}
-                  strokeWidth={1.8}
-                />
-              </button>
+{searchOpen ? (
+  <div className="relative flex items-center">
+    <Search
+      size={13}
+      strokeWidth={1.8}
+      className="absolute left-2 text-[#777777]"
+    />
+
+    <input
+      type="text"
+      value={search}
+      onChange={(event) => setSearch(event.target.value)}
+      placeholder="Search tasks..."
+      autoFocus
+      className="
+        w-[180px]
+        h-7
+        border border-[#E5E5E5]
+        rounded-md
+        pl-7
+        pr-7
+        text-[10px]
+        text-[#222222]
+        bg-white
+        outline-none
+        focus:border-[#BBBBBB]
+      "
+    />
+
+    {search && (
+      <button
+        type="button"
+        onClick={() => setSearch("")}
+        className="
+          absolute
+          right-2
+          text-[#888888]
+          hover:text-black
+          text-[12px]
+        "
+      >
+        ×
+      </button>
+    )}
+  </div>
+) : (
+  <button
+    type="button"
+    onClick={() => setSearchOpen(true)}
+    className="
+      w-7 h-7
+      border border-[#E5E5E5]
+      rounded-md
+      flex items-center justify-center
+      text-[#444444]
+      bg-white
+      hover:bg-[#E8E8E8]
+      hover:border-[#CFCFCF]
+      hover:text-black
+      transition-all duration-150
+    "
+    title="Search"
+  >
+    <Search
+      size={13}
+      strokeWidth={1.8}
+    />
+  </button>
+)}
 
               {/* Fields */}
               <button
