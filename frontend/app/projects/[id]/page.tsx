@@ -21,33 +21,37 @@ type Project = {
     members: string[];
 };
 
-const API_URL = "http://localhost:4000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 const defaultProjects: Project[] = [
-    {
-        id: 1,
-        name: "Design Homepage",
-        priority: "High",
-        lead: "Admin",
-        dueDate: "12 Sep 2026",
-        members: "Admin",
-    },
-    {
-        id: 2,
-        name: "Develop Login Feature",
-        priority: "Low",
-        lead: "CN",
-        dueDate: "15 Sep 2026",
-        members: "CN",
-    },
-    {
-        id: 3,
-        name: "Test Payment Gateway",
-        priority: "Medium",
-        lead: "+",
-        dueDate: "18 Sep 2026",
-        members: "+",
-    },
+  {
+    id: 1,
+    name: "Design Homepage",
+    description: "",
+    priority: "High",
+    lead: "Admin",
+    dueDate: "12 Sep 2026",
+    members: ["Admin"],
+  },
+  {
+    id: 2,
+    name: "Develop Login Feature",
+    description: "",
+    priority: "Low",
+    lead: "CN",
+    dueDate: "15 Sep 2026",
+    members: ["CN"],
+  },
+  {
+    id: 3,
+    name: "Test Payment Gateway",
+    description: "",
+    priority: "Medium",
+    lead: "+",
+    dueDate: "18 Sep 2026",
+    members: ["+"],
+  },
 ];
 
 export default function ProjectDetailPage() {

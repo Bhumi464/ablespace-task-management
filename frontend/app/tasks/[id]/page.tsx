@@ -33,7 +33,8 @@ type BackendTask = {
   reporter?: string;
 };
 
-const API_URL = "http://localhost:4000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export default function TaskDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -1416,6 +1417,7 @@ function EditableDetails({
           labels={values.Labels}
           options={options.Labels}
           open={openField === "Labels"}
+          locked={locked}
           onToggle={() =>
             setOpenField((current) =>
               current === "Labels" ? null : "Labels"

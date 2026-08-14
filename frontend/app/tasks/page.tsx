@@ -43,7 +43,8 @@ function getListGridTemplate(visibleFields: {
 }
 const THEME_KEY = "ablespace-theme";
 const PROFILE_KEY = "ablespace-profile";
-const API_URL = "http://localhost:4000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 type Profile = {
   email: string;

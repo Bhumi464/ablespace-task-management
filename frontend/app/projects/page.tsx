@@ -43,7 +43,8 @@ const defaultProfile: Profile = {
     title: "Designer",
     username: "Dexuser",
 };
-const API_URL = "http://localhost:4000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const PROJECTS_KEY = "ablespace-projects";
 const initialProjects: Project[] = [
     {
