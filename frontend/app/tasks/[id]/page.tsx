@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useParams } from "next/navigation";
-import { tasks } from "@/data/tasks";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -21,37 +20,63 @@ import {
   List,
 } from "lucide-react";
 
+type BackendTask = {
+  id: string | number;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  member: string;
+  dueDate: string;
+  labels: string[];
+  team: string;
+  reporter?: string;
+};
+
+const API_URL = "http://localhost:4000";
+
 export default function TaskDetailsPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const initialTask = tasks.find((item) => item.id === id);
-  const [currentTask, setCurrentTask] = useState<typeof initialTask>(initialTask);
+  const [currentTask, setCurrentTask] = useState<BackendTask | null>(null);
   const [isLoadingTask, setIsLoadingTask] = useState(true);
 
-  // Use the saved task from localStorage when the task was created
-  // from the Add Task form.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("ablespace-tasks");
+    const loadTask = async () => {
+      try {
+        setIsLoadingTask(true);
 
-      if (saved) {
-        const parsed = JSON.parse(saved);
+        const response = await fetch(`${API_URL}/tasks/${id}`);
 
-        if (Array.isArray(parsed)) {
-          const savedTask = parsed.find(
-            (item) => String(item.id) === String(id)
-          );
-
-          if (savedTask) {
-            setCurrentTask(savedTask);
-          }
+        if (!response.ok) {
+          throw new Error("Task not found");
         }
+
+        const data = await response.json();
+
+        setCurrentTask({
+          id: data.id,
+          title: data.title ?? "",
+          description: data.description ?? "",
+          status: data.status ?? "To Do",
+          priority: data.priority ?? "Medium",
+          member: data.member ?? "Admin",
+          dueDate: data.dueDate ?? "",
+          labels: Array.isArray(data.labels) ? data.labels : [],
+          team: data.team ?? "Development",
+          reporter: data.reporter ?? data.member ?? "Admin",
+        });
+      } catch (error) {
+        console.error("Failed to load task:", error);
+        setCurrentTask(null);
+      } finally {
+        setIsLoadingTask(false);
       }
-    } catch {
-      // Keep the original task from the static data if localStorage fails.
-    } finally {
-      setIsLoadingTask(false);
+    };
+
+    if (id) {
+      loadTask();
     }
   }, [id]);
 
@@ -240,15 +265,29 @@ export default function TaskDetailsPage() {
     window.setTimeout(() => setShareMessage(""), 1800);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!task) return;
 
     const confirmed = window.confirm(
-      `Delete "${task.title}" from this page?`
+      `Delete "${task.title}"?`
     );
 
-    if (confirmed) {
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `${API_URL}/tasks/${task.id}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete task");
+      }
+
       window.location.href = "/tasks";
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+      alert("Failed to delete task. Please try again.");
     }
   };
 
@@ -1110,9 +1149,9 @@ function EditableDetails({
   locked,
   onSave,
 }: {
-  task: (typeof tasks)[number];
+  task: BackendTask;
   locked: boolean;
-  onSave: (updatedTask: (typeof tasks)[number]) => void;
+  onSave: (updatedTask: BackendTask) => void;
 }) {
   const [openField, setOpenField] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -1211,24 +1250,10 @@ function EditableDetails({
     setDirty(true);
   };
 
-  const saveChanges = () => {
+  const saveChanges = async () => {
     if (locked) return;
 
-    const stored = localStorage.getItem("ablespace-tasks");
-    let storedTasks: Array<(typeof tasks)[number]> = tasks;
-
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          storedTasks = parsed;
-        }
-      } catch {
-        storedTasks = tasks;
-      }
-    }
-
-    const updatedTask = {
+    const updatedTask: BackendTask = {
       ...task,
       status: values.Status,
       priority: values.Priority,
@@ -1237,18 +1262,55 @@ function EditableDetails({
       labels: values.Labels,
       team: values.Teams,
       reporter: values.Reporter,
-    } as (typeof tasks)[number];
+    };
 
-    const updatedTasks = storedTasks.map((item) =>
-      item.id === task.id ? updatedTask : item
-    );
+    try {
+      const response = await fetch(
+        `${API_URL}/tasks/${task.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: updatedTask.status,
+            priority: updatedTask.priority,
+            member: updatedTask.member,
+            dueDate: updatedTask.dueDate,
+            labels: updatedTask.labels,
+            team: updatedTask.team,
+          }),
+        }
+      );
 
-    localStorage.setItem("ablespace-tasks", JSON.stringify(updatedTasks));
-    window.dispatchEvent(new Event("ablespace-tasks-updated"));
+      if (!response.ok) {
+        throw new Error("Failed to update task");
+      }
 
-    onSave(updatedTask);
-    setDirty(false);
-    setOpenField(null);
+      const savedTask = await response.json();
+
+      const normalizedTask: BackendTask = {
+        id: savedTask.id,
+        title: savedTask.title ?? updatedTask.title,
+        description: savedTask.description ?? updatedTask.description,
+        status: savedTask.status ?? updatedTask.status,
+        priority: savedTask.priority ?? updatedTask.priority,
+        member: savedTask.member ?? updatedTask.member,
+        dueDate: savedTask.dueDate ?? updatedTask.dueDate,
+        labels: Array.isArray(savedTask.labels)
+          ? savedTask.labels
+          : updatedTask.labels,
+        team: savedTask.team ?? updatedTask.team,
+        reporter: savedTask.reporter ?? updatedTask.reporter,
+      };
+
+      onSave(normalizedTask);
+      setDirty(false);
+      setOpenField(null);
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      alert("Failed to update task. Please try again.");
+    }
   };
 
   const cancelChanges = () => {

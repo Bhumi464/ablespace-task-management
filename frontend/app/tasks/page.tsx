@@ -43,12 +43,26 @@ function getListGridTemplate(visibleFields: {
 }
 const THEME_KEY = "ablespace-theme";
 const PROFILE_KEY = "ablespace-profile";
+const API_URL = "http://localhost:4000";
 
 type Profile = {
   email: string;
   fullName: string;
   title: string;
   username: string;
+};
+
+type BackendTask = {
+  id: number | string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  member: string;
+  dueDate: string;
+  labels: string[];
+  team: string;
+  reporter?: string;
 };
 
 const defaultProfile: Profile = {
@@ -94,7 +108,9 @@ export default function TasksPage() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Keep task cards synced with saved edits from the task details page.
-  const [taskList, setTaskList] = useState(tasks);
+  const [taskList, setTaskList] =
+  useState<BackendTask[]>(tasks);
+const [tasksLoading, setTasksLoading] = useState(true);
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
 
@@ -199,64 +215,49 @@ export default function TasksPage() {
     setColorModeOpen(false);
   };
   useEffect(() => {
-    const colors = {
-      amber: "#f59e0b",
-      blue: "#3b82f6",
-      pink: "#ec4899",
-      rose: "#f43f5e",
-      emerald: "#10b981",
-      black: "#111111",
-      purple: "#ac05fa",
-    };
+  const loadTasks = async () => {
+    try {
+      setTasksLoading(true);
 
-    const applyColorMode = (savedColor: string | null) => {
-      const selected =
-        savedColor === "amber" ||
-          savedColor === "blue" ||
-          savedColor === "pink" ||
-          savedColor === "rose" ||
-          savedColor === "emerald" ||
-          savedColor === "black" || 
-          savedColor === "purple"
-          ? savedColor
-          : "purple";
+      const response = await fetch(`${API_URL}/tasks`);
 
-      setColorMode(selected);
-
-      document.documentElement.style.setProperty(
-        "--accent-color",
-        colors[selected]
-      );
-    };
-
-    applyColorMode(localStorage.getItem("ablespace-color-mode"));
-
-    const handleColorModeUpdated = (event: Event) => {
-      const customEvent = event as CustomEvent<
-        "amber" | "blue" | "pink" | "rose" | "emerald" | "black" | "purple"
-      >;
-
-      applyColorMode(customEvent.detail);
-    };
-
-    window.addEventListener(
-      "ablespace-color-mode-updated",
-      handleColorModeUpdated
-    );
-
-    window.addEventListener("storage", (event) => {
-      if (event.key === "ablespace-color-mode") {
-        applyColorMode(event.newValue);
+      if (!response.ok) {
+        throw new Error("Failed to load tasks");
       }
-    });
 
-    return () => {
-      window.removeEventListener(
-        "ablespace-color-mode-updated",
-        handleColorModeUpdated
-      );
-    };
-  }, []);
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+  const normalizedTasks: BackendTask[] =
+    data.map((task) => ({
+      id: task.id,
+      title: task.title ?? "",
+      description: task.description ?? "",
+      status: task.status ?? "To Do",
+      priority: task.priority ?? "Medium",
+      member: task.member ?? "Admin",
+      dueDate: task.dueDate ?? "",
+      labels: Array.isArray(task.labels)
+        ? task.labels
+        : [],
+      team: task.team ?? "Development",
+      reporter: task.reporter,
+    }));
+
+  setTaskList(normalizedTasks);
+}
+    } catch (error) {
+      console.error("Failed to load tasks:", error);
+
+      // Keep the existing tasks as a fallback
+      setTaskList(tasks);
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  loadTasks();
+}, []);
 
   useEffect(() => {
     const loadSavedTasks = () => {
@@ -294,13 +295,13 @@ export default function TasksPage() {
   // Filter dropdown
   const [showFilter, setShowFilter] = useState(false);
   const [filterSubmenu, setFilterSubmenu] = useState<string | null>(null);
-const [statusFilter, setStatusFilter] = useState("All");
-const [priorityFilter, setPriorityFilter] = useState("All");
-const [memberFilter, setMemberFilter] = useState("All");
-const [dueDateFilter, setDueDateFilter] = useState("All");
-const [teamFilter, setTeamFilter] = useState("All");
-const [labelFilter, setLabelFilter] = useState("All");
-const [reporterFilter, setReporterFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+  const [memberFilter, setMemberFilter] = useState("All");
+  const [dueDateFilter, setDueDateFilter] = useState("All");
+  const [teamFilter, setTeamFilter] = useState("All");
+  const [labelFilter, setLabelFilter] = useState("All");
+  const [reporterFilter, setReporterFilter] = useState("All");
   const [profileOpen, setProfileOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [colorModeOpen, setColorModeOpen] = useState(false);
@@ -439,159 +440,159 @@ const [reporterFilter, setReporterFilter] = useState("All");
   }, []);
 
   const filteredTasks = useMemo(() => {
-  const searchText = search.toLowerCase().trim();
+    const searchText = search.toLowerCase().trim();
 
-  return taskList.filter((task) => {
-    /* SEARCH */
-    const matchesSearch =
-      !searchText ||
-      task.title.toLowerCase().includes(searchText) ||
-      task.member.toLowerCase().includes(searchText) ||
-      task.labels.some((label) =>
-        label.toLowerCase().includes(searchText)
+    return taskList.filter((task) => {
+      /* SEARCH */
+      const matchesSearch =
+        !searchText ||
+        task.title.toLowerCase().includes(searchText) ||
+        task.member.toLowerCase().includes(searchText) ||
+        task.labels.some((label) =>
+          label.toLowerCase().includes(searchText)
+        );
+
+      /* STATUS */
+      const matchesStatus =
+        statusFilter === "All" ||
+        task.status === statusFilter;
+
+      /* PRIORITY */
+      const matchesPriority =
+        priorityFilter === "All" ||
+        task.priority === priorityFilter;
+
+      /* MEMBERS */
+      const matchesMember =
+        memberFilter === "All" ||
+        task.member === memberFilter;
+
+      /* TEAM */
+      const matchesTeam =
+        teamFilter === "All" ||
+        task.team === teamFilter;
+
+      /* LABELS */
+      const matchesLabel =
+        labelFilter === "All" ||
+        task.labels.includes(labelFilter);
+
+      /* REPORTER */
+      const taskReporter =
+        (task as typeof task & { reporter?: string }).reporter ||
+        task.member;
+
+      const matchesReporter =
+        reporterFilter === "All" ||
+        taskReporter === reporterFilter;
+
+      /* DUE DATE */
+      const matchesDueDate = (() => {
+        if (dueDateFilter === "All") {
+          return true;
+        }
+
+        if (dueDateFilter === "No Due Date") {
+          return !task.dueDate || task.dueDate.trim() === "";
+        }
+
+        if (dueDateFilter === "Overdue") {
+          if (!task.dueDate) return false;
+
+          const taskDate = new Date(task.dueDate);
+          const today = new Date();
+
+          if (Number.isNaN(taskDate.getTime())) {
+            return false;
+          }
+
+          taskDate.setHours(0, 0, 0, 0);
+          today.setHours(0, 0, 0, 0);
+
+          return taskDate < today;
+        }
+
+        if (dueDateFilter === "Today") {
+          const taskDate = new Date(task.dueDate);
+          const today = new Date();
+
+          if (Number.isNaN(taskDate.getTime())) {
+            return false;
+          }
+
+          return (
+            taskDate.toDateString() === today.toDateString()
+          );
+        }
+
+        if (dueDateFilter === "Tomorrow") {
+          const taskDate = new Date(task.dueDate);
+          const tomorrow = new Date();
+
+          if (Number.isNaN(taskDate.getTime())) {
+            return false;
+          }
+
+          tomorrow.setDate(tomorrow.getDate() + 1);
+
+          return (
+            taskDate.toDateString() ===
+            tomorrow.toDateString()
+          );
+        }
+
+        if (dueDateFilter === "This Week") {
+          const taskDate = new Date(task.dueDate);
+
+          if (Number.isNaN(taskDate.getTime())) {
+            return false;
+          }
+
+          const today = new Date();
+
+          const startOfWeek = new Date(today);
+          startOfWeek.setDate(
+            today.getDate() - today.getDay()
+          );
+          startOfWeek.setHours(0, 0, 0, 0);
+
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(
+            startOfWeek.getDate() + 6
+          );
+          endOfWeek.setHours(23, 59, 59, 999);
+
+          return (
+            taskDate >= startOfWeek &&
+            taskDate <= endOfWeek
+          );
+        }
+
+        return task.dueDate === dueDateFilter;
+      })();
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesPriority &&
+        matchesMember &&
+        matchesDueDate &&
+        matchesTeam &&
+        matchesLabel &&
+        matchesReporter
       );
-
-    /* STATUS */
-    const matchesStatus =
-      statusFilter === "All" ||
-      task.status === statusFilter;
-
-    /* PRIORITY */
-    const matchesPriority =
-      priorityFilter === "All" ||
-      task.priority === priorityFilter;
-
-    /* MEMBERS */
-    const matchesMember =
-      memberFilter === "All" ||
-      task.member === memberFilter;
-
-    /* TEAM */
-    const matchesTeam =
-      teamFilter === "All" ||
-      task.team === teamFilter;
-
-    /* LABELS */
-    const matchesLabel =
-      labelFilter === "All" ||
-      task.labels.includes(labelFilter);
-
-    /* REPORTER */
-    const taskReporter =
-      (task as typeof task & { reporter?: string }).reporter ||
-      task.member;
-
-    const matchesReporter =
-      reporterFilter === "All" ||
-      taskReporter === reporterFilter;
-
-    /* DUE DATE */
-    const matchesDueDate = (() => {
-      if (dueDateFilter === "All") {
-        return true;
-      }
-
-      if (dueDateFilter === "No Due Date") {
-        return !task.dueDate || task.dueDate.trim() === "";
-      }
-
-      if (dueDateFilter === "Overdue") {
-        if (!task.dueDate) return false;
-
-        const taskDate = new Date(task.dueDate);
-        const today = new Date();
-
-        if (Number.isNaN(taskDate.getTime())) {
-          return false;
-        }
-
-        taskDate.setHours(0, 0, 0, 0);
-        today.setHours(0, 0, 0, 0);
-
-        return taskDate < today;
-      }
-
-      if (dueDateFilter === "Today") {
-        const taskDate = new Date(task.dueDate);
-        const today = new Date();
-
-        if (Number.isNaN(taskDate.getTime())) {
-          return false;
-        }
-
-        return (
-          taskDate.toDateString() === today.toDateString()
-        );
-      }
-
-      if (dueDateFilter === "Tomorrow") {
-        const taskDate = new Date(task.dueDate);
-        const tomorrow = new Date();
-
-        if (Number.isNaN(taskDate.getTime())) {
-          return false;
-        }
-
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        return (
-          taskDate.toDateString() ===
-          tomorrow.toDateString()
-        );
-      }
-
-      if (dueDateFilter === "This Week") {
-        const taskDate = new Date(task.dueDate);
-
-        if (Number.isNaN(taskDate.getTime())) {
-          return false;
-        }
-
-        const today = new Date();
-
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(
-          today.getDate() - today.getDay()
-        );
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(
-          startOfWeek.getDate() + 6
-        );
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        return (
-          taskDate >= startOfWeek &&
-          taskDate <= endOfWeek
-        );
-      }
-
-      return task.dueDate === dueDateFilter;
-    })();
-
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesPriority &&
-      matchesMember &&
-      matchesDueDate &&
-      matchesTeam &&
-      matchesLabel &&
-      matchesReporter
-    );
-  });
-}, [
-  search,
-  taskList,
-  statusFilter,
-  priorityFilter,
-  memberFilter,
-  dueDateFilter,
-  teamFilter,
-  labelFilter,
-  reporterFilter,
-]);
+    });
+  }, [
+    search,
+    taskList,
+    statusFilter,
+    priorityFilter,
+    memberFilter,
+    dueDateFilter,
+    teamFilter,
+    labelFilter,
+    reporterFilter,
+  ]);
 
   const toggleField = (
     field: keyof typeof visibleFields
@@ -609,43 +610,52 @@ const [reporterFilter, setReporterFilter] = useState("All");
     }));
   };
 
-  const handleAddTask = () => {
-    if (!newTask.title.trim()) {
-      return;
-    }
+  const handleAddTask = async () => {
+  if (!newTask.title.trim()) {
+    return;
+  }
 
-    const task = {
-      id: String(Date.now()),
-      title: newTask.title.trim(),
-      description:
-        newTask.description.trim() ||
-        "Add details",
-      status: newTask.status,
-      priority: newTask.priority,
-      member: newTask.member,
-      dueDate:
-        newTask.dueDate || "29 Jul",
-      labels: newTask.labels
-        ? newTask.labels
+  const taskData = {
+    title: newTask.title.trim(),
+    description:
+      newTask.description.trim() || "Add details",
+    status: newTask.status,
+    priority: newTask.priority,
+    member: newTask.member,
+    dueDate: newTask.dueDate || "29 Jul",
+    labels: newTask.labels
+      ? newTask.labels
           .split(",")
           .map((label) => label.trim())
           .filter(Boolean)
-        : [],
-      team: "Development",
-    };
+      : [],
+    team: "Development",
+  };
 
-    const updatedTasks = [...taskList, task];
+  try {
+    const response = await fetch(`${API_URL}/tasks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(taskData),
+    });
 
-    setTaskList(updatedTasks);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
 
-    localStorage.setItem(
-      "ablespace-tasks",
-      JSON.stringify(updatedTasks)
-    );
+      console.error("Create task failed:", errorData);
 
-    window.dispatchEvent(
-      new Event("ablespace-tasks-updated")
-    );
+      alert("Failed to create task.");
+      return;
+    }
+
+    const createdTask = await response.json();
+
+    setTaskList((previous) => [
+      ...previous,
+      createdTask,
+    ]);
 
     setNewTask({
       title: "",
@@ -658,23 +668,35 @@ const [reporterFilter, setReporterFilter] = useState("All");
     });
 
     setAddTaskOpen(false);
-  };
+  } catch (error) {
+    console.error("Failed to create task:", error);
+    alert("Unable to connect to the backend.");
+  }
+};
 
-  const handleDeleteTask = (taskId: string) => {
-    const updatedTasks = taskList.filter(
-      (item) => String(item.id) !== String(taskId)
+  const handleDeleteTask = async (taskId: string | number) => {
+  try {
+    const response = await fetch(
+      `${API_URL}/tasks/${taskId}`,
+      {
+        method: "DELETE",
+      }
     );
 
-    setTaskList(updatedTasks);
-    localStorage.setItem(
-      "ablespace-tasks",
-      JSON.stringify(updatedTasks)
-    );
+    if (!response.ok) {
+      throw new Error("Failed to delete task");
+    }
 
-    window.dispatchEvent(
-      new Event("ablespace-tasks-updated")
+    setTaskList((previous) =>
+      previous.filter(
+        (item) => String(item.id) !== String(taskId)
+      )
     );
-  };
+  } catch (error) {
+    console.error("Failed to delete task:", error);
+    alert("Unable to delete task.");
+  }
+};
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -917,68 +939,68 @@ const [reporterFilter, setReporterFilter] = useState("All");
                         Color Mode
                       </p>
                       {
-                      [
-  { key: "amber", label: "Amber", color: "#f59e0b" },
-  { key: "blue", label: "Blue", color: "#3b82f6" },
-  { key: "pink", label: "Pink", color: "#ec4899" },
-  { key: "rose", label: "Rose", color: "#f43f5e" },
-  { key: "emerald", label: "Emerald", color: "#10b981" },
-  { key: "black", label: "Black", color: "#111111" },
-  { key: "purple", label: "Purple", color: "#ac05fa" },
-].map((item) => (
-  <button
-    key={item.key}
-    type="button"
-    onClick={() => {
-  changeColorMode(
-    item.key as
-      | "amber"
-      | "blue"
-      | "pink"
-      | "rose"
-      | "emerald"
-      | "black"
-      | "purple"
-  );
-}}
-    className="w-full h-[28px] px-3 flex items-center justify-between text-left text-[9px] hover:bg-[#F5F5F5]"
-  >
-    <span className="flex items-center gap-2">
-      <span
-        className="w-[8px] h-[8px] rounded-[1px]"
-        style={{
-          backgroundColor: item.color,
-        }}
-      />
+                        [
+                          { key: "amber", label: "Amber", color: "#f59e0b" },
+                          { key: "blue", label: "Blue", color: "#3b82f6" },
+                          { key: "pink", label: "Pink", color: "#ec4899" },
+                          { key: "rose", label: "Rose", color: "#f43f5e" },
+                          { key: "emerald", label: "Emerald", color: "#10b981" },
+                          { key: "black", label: "Black", color: "#111111" },
+                          { key: "purple", label: "Purple", color: "#ac05fa" },
+                        ].map((item) => (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => {
+                              changeColorMode(
+                                item.key as
+                                | "amber"
+                                | "blue"
+                                | "pink"
+                                | "rose"
+                                | "emerald"
+                                | "black"
+                                | "purple"
+                              );
+                            }}
+                            className="w-full h-[28px] px-3 flex items-center justify-between text-left text-[9px] hover:bg-[#F5F5F5]"
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="w-[8px] h-[8px] rounded-[1px]"
+                                style={{
+                                  backgroundColor: item.color,
+                                }}
+                              />
 
-      {item.label}
-    </span>
+                              {item.label}
+                            </span>
 
-    {colorMode === item.key && (
-      <Check size={10} />
-    )}
-  </button>
-))
+                            {colorMode === item.key && (
+                              <Check size={10} />
+                            )}
+                          </button>
+                        ))
                       }
                     </div>
                   )}
                 </div>
 
                 <button
-    type="button"
-    onClick={() => {
-        window.location.href = "/settings";
-    }}
-    className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
->
-    <Settings
-        size={12}
-        strokeWidth={1.5}
-        className="text-[#555555]"
-    />
+                  type="button"
+                  onClick={() => {
+                    window.location.href = "/settings";
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
+                >
+                  <Settings
+                    size={12}
+                    strokeWidth={1.5}
+                    className="text-[#555555]"
+                  />
 
-    <span>Settings</span>
-</button>
+                  <span>Settings</span>
+                </button>
               </div>
             )}
           </div>
@@ -1071,21 +1093,21 @@ const [reporterFilter, setReporterFilter] = useState("All");
             >
 
               {/* Search */}
-{searchOpen ? (
-  <div className="relative flex items-center">
-    <Search
-      size={13}
-      strokeWidth={1.8}
-      className="absolute left-2 text-[#777777]"
-    />
+              {searchOpen ? (
+                <div className="relative flex items-center">
+                  <Search
+                    size={13}
+                    strokeWidth={1.8}
+                    className="absolute left-2 text-[#777777]"
+                  />
 
-    <input
-      type="text"
-      value={search}
-      onChange={(event) => setSearch(event.target.value)}
-      placeholder="Search tasks..."
-      autoFocus
-      className="
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search tasks..."
+                    autoFocus
+                    className="
         w-[180px]
         h-7
         border border-[#E5E5E5]
@@ -1098,29 +1120,29 @@ const [reporterFilter, setReporterFilter] = useState("All");
         outline-none
         focus:border-[#BBBBBB]
       "
-    />
+                  />
 
-    {search && (
-      <button
-        type="button"
-        onClick={() => setSearch("")}
-        className="
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="
           absolute
           right-2
           text-[#888888]
           hover:text-black
           text-[12px]
         "
-      >
-        ×
-      </button>
-    )}
-  </div>
-) : (
-  <button
-    type="button"
-    onClick={() => setSearchOpen(true)}
-    className="
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="
       w-7 h-7
       border border-[#E5E5E5]
       rounded-md
@@ -1132,14 +1154,14 @@ const [reporterFilter, setReporterFilter] = useState("All");
       hover:text-black
       transition-all duration-150
     "
-    title="Search"
-  >
-    <Search
-      size={13}
-      strokeWidth={1.8}
-    />
-  </button>
-)}
+                  title="Search"
+                >
+                  <Search
+                    size={13}
+                    strokeWidth={1.8}
+                  />
+                </button>
+              )}
 
               {/* Fields */}
               <button
@@ -1302,18 +1324,18 @@ const [reporterFilter, setReporterFilter] = useState("All");
               )}
 
               {/* Filter */}
-<div
-  ref={filterRef}
-  className="relative"
->
-  <button
-    type="button"
-    onClick={() => {
-      setShowFilter((previous) => !previous);
-      setFilterSubmenu(null);
-      setFieldsOpen(false);
-    }}
-    className="
+              <div
+                ref={filterRef}
+                className="relative"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFilter((previous) => !previous);
+                    setFilterSubmenu(null);
+                    setFieldsOpen(false);
+                  }}
+                  className="
       w-7 h-7
       border border-[#E5E5E5]
       rounded-md
@@ -1322,14 +1344,14 @@ const [reporterFilter, setReporterFilter] = useState("All");
       bg-white
       hover:bg-[#E8E8E8]
     "
-    title="Filter"
-  >
-    <Filter size={12} strokeWidth={1.8} />
-  </button>
+                  title="Filter"
+                >
+                  <Filter size={12} strokeWidth={1.8} />
+                </button>
 
-  {showFilter && (
-    <div
-      className="
+                {showFilter && (
+                  <div
+                    className="
         absolute
         right-0
         top-[34px]
@@ -1341,230 +1363,230 @@ const [reporterFilter, setReporterFilter] = useState("All");
         shadow-[0_4px_12px_rgba(0,0,0,0.12)]
         py-1
       "
-    >
+                  >
 
-      {/* STATUS */}
-      <FilterMenuItem
-        label="Status"
-        active={filterSubmenu === "status"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "status" ? null : "status"
-          )
-        }
-      />
+                    {/* STATUS */}
+                    <FilterMenuItem
+                      label="Status"
+                      active={filterSubmenu === "status"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "status" ? null : "status"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "status" && (
-        <FilterSubmenu
-          title="Status"
-          value={statusFilter}
-          options={[
-            "All",
-            "To Do",
-            "Doing",
-            "Completed",
-            "On Hold",
-          ]}
-          onSelect={(value) => {
-            setStatusFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "status" && (
+                      <FilterSubmenu
+                        title="Status"
+                        value={statusFilter}
+                        options={[
+                          "All",
+                          "To Do",
+                          "Doing",
+                          "Completed",
+                          "On Hold",
+                        ]}
+                        onSelect={(value) => {
+                          setStatusFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-      {/* PRIORITY */}
-      <FilterMenuItem
-        label="Priority"
-        active={filterSubmenu === "priority"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "priority" ? null : "priority"
-          )
-        }
-      />
+                    {/* PRIORITY */}
+                    <FilterMenuItem
+                      label="Priority"
+                      active={filterSubmenu === "priority"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "priority" ? null : "priority"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "priority" && (
-        <FilterSubmenu
-          title="Priority"
-          value={priorityFilter}
-          options={[
-            "All",
-            "Urgent",
-            "High",
-            "Medium",
-            "Low",
-          ]}
-          urgentOption="Urgent"
-          onSelect={(value) => {
-            setPriorityFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "priority" && (
+                      <FilterSubmenu
+                        title="Priority"
+                        value={priorityFilter}
+                        options={[
+                          "All",
+                          "Urgent",
+                          "High",
+                          "Medium",
+                          "Low",
+                        ]}
+                        urgentOption="Urgent"
+                        onSelect={(value) => {
+                          setPriorityFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-      {/* MEMBERS */}
-      <FilterMenuItem
-        label="Members"
-        active={filterSubmenu === "members"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "members" ? null : "members"
-          )
-        }
-      />
+                    {/* MEMBERS */}
+                    <FilterMenuItem
+                      label="Members"
+                      active={filterSubmenu === "members"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "members" ? null : "members"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "members" && (
-        <FilterSubmenu
-          title="Members"
-          value={memberFilter}
-          options={[
-            "All",
-            "Admin",
-            "CN",
-            "QA Team",
-            "Designer",
-            "Developer",
-            "Security",
-          ]}
-          onSelect={(value) => {
-            setMemberFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "members" && (
+                      <FilterSubmenu
+                        title="Members"
+                        value={memberFilter}
+                        options={[
+                          "All",
+                          "Admin",
+                          "CN",
+                          "QA Team",
+                          "Designer",
+                          "Developer",
+                          "Security",
+                        ]}
+                        onSelect={(value) => {
+                          setMemberFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-      {/* DUE DATE */}
-      <FilterMenuItem
-        label="Due Date"
-        active={filterSubmenu === "dueDate"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "dueDate" ? null : "dueDate"
-          )
-        }
-      />
+                    {/* DUE DATE */}
+                    <FilterMenuItem
+                      label="Due Date"
+                      active={filterSubmenu === "dueDate"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "dueDate" ? null : "dueDate"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "dueDate" && (
-        <FilterSubmenu
-          title="Due Date"
-          value={dueDateFilter}
-          options={[
-            "All",
-            "Today",
-            "Tomorrow",
-            "This Week",
-            "Overdue",
-            "No Due Date",
-          ]}
-          onSelect={(value) => {
-            setDueDateFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "dueDate" && (
+                      <FilterSubmenu
+                        title="Due Date"
+                        value={dueDateFilter}
+                        options={[
+                          "All",
+                          "Today",
+                          "Tomorrow",
+                          "This Week",
+                          "Overdue",
+                          "No Due Date",
+                        ]}
+                        onSelect={(value) => {
+                          setDueDateFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-      {/* TEAMS */}
-      <FilterMenuItem
-        label="Teams"
-        active={filterSubmenu === "teams"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "teams" ? null : "teams"
-          )
-        }
-      />
+                    {/* TEAMS */}
+                    <FilterMenuItem
+                      label="Teams"
+                      active={filterSubmenu === "teams"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "teams" ? null : "teams"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "teams" && (
-        <FilterSubmenu
-          title="Teams"
-          value={teamFilter}
-          options={[
-            "All",
-            "Development",
-            "Design",
-            "QA",
-            "Security",
-          ]}
-          onSelect={(value) => {
-            setTeamFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "teams" && (
+                      <FilterSubmenu
+                        title="Teams"
+                        value={teamFilter}
+                        options={[
+                          "All",
+                          "Development",
+                          "Design",
+                          "QA",
+                          "Security",
+                        ]}
+                        onSelect={(value) => {
+                          setTeamFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-      {/* LABELS */}
-      <FilterMenuItem
-        label="Labels"
-        active={filterSubmenu === "labels"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "labels" ? null : "labels"
-          )
-        }
-      />
+                    {/* LABELS */}
+                    <FilterMenuItem
+                      label="Labels"
+                      active={filterSubmenu === "labels"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "labels" ? null : "labels"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "labels" && (
-        <FilterSubmenu
-          title="Labels"
-          value={labelFilter}
-          options={[
-            "All",
-            "Research",
-            "Development",
-            "Design",
-            "Testing",
-            "Deployment",
-            "Review",
-            "Audit",
-          ]}
-          onSelect={(value) => {
-            setLabelFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "labels" && (
+                      <FilterSubmenu
+                        title="Labels"
+                        value={labelFilter}
+                        options={[
+                          "All",
+                          "Research",
+                          "Development",
+                          "Design",
+                          "Testing",
+                          "Deployment",
+                          "Review",
+                          "Audit",
+                        ]}
+                        onSelect={(value) => {
+                          setLabelFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-      {/* REPORTER */}
-      <FilterMenuItem
-        label="Reporter"
-        active={filterSubmenu === "reporter"}
-        onClick={() =>
-          setFilterSubmenu(
-            filterSubmenu === "reporter" ? null : "reporter"
-          )
-        }
-      />
+                    {/* REPORTER */}
+                    <FilterMenuItem
+                      label="Reporter"
+                      active={filterSubmenu === "reporter"}
+                      onClick={() =>
+                        setFilterSubmenu(
+                          filterSubmenu === "reporter" ? null : "reporter"
+                        )
+                      }
+                    />
 
-      {filterSubmenu === "reporter" && (
-        <FilterSubmenu
-          title="Reporter"
-          value={reporterFilter}
-          options={[
-            "All",
-            "Admin",
-            "CN",
-            "QA Team",
-            "Designer",
-            "Developer",
-            "Security",
-          ]}
-          onSelect={(value) => {
-            setReporterFilter(value);
-            setShowFilter(false);
-            setFilterSubmenu(null);
-          }}
-        />
-      )}
+                    {filterSubmenu === "reporter" && (
+                      <FilterSubmenu
+                        title="Reporter"
+                        value={reporterFilter}
+                        options={[
+                          "All",
+                          "Admin",
+                          "CN",
+                          "QA Team",
+                          "Designer",
+                          "Developer",
+                          "Security",
+                        ]}
+                        onSelect={(value) => {
+                          setReporterFilter(value);
+                          setShowFilter(false);
+                          setFilterSubmenu(null);
+                        }}
+                      />
+                    )}
 
-    </div>
-  )}
-</div>
+                  </div>
+                )}
+              </div>
 
               {/* Add Task */}
               <button
@@ -2347,7 +2369,7 @@ function TaskCard({
   visibleFields,
   onDelete,
 }: {
-  task: (typeof tasks)[number];
+  task: BackendTask;
   visibleFields: {
     priority: boolean;
     members: boolean;
