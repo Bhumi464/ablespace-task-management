@@ -1,0 +1,6 @@
+# Backend
+backend/pyramid.sqlite
+
+# Dependencies
+node_modules/
+.next/
