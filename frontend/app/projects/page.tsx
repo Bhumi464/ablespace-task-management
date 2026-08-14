@@ -43,6 +43,7 @@ const defaultProfile: Profile = {
     title: "Designer",
     username: "Dexuser",
 };
+const API_URL = "http://localhost:4000";
 const PROJECTS_KEY = "ablespace-projects";
 const initialProjects: Project[] = [
     {
@@ -69,23 +70,47 @@ const initialProjects: Project[] = [
 ];
 
 export default function ProjectsPage() {
-    const [projects, setProjects] = useState<Project[]>(initialProjects);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(true);
+
+    const loadProjects = async () => {
+        try {
+            const response = await fetch(`${API_URL}/projects`, {
+                cache: "no-store",
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to load projects");
+            }
+
+            const data: Project[] = await response.json();
+            setProjects(data);
+        } catch (error) {
+            console.error("Failed to load projects:", error);
+            setProjects([]);
+        } finally {
+            setProjectsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const savedProjects = localStorage.getItem(PROJECTS_KEY);
+        loadProjects();
 
-        if (savedProjects) {
-            try {
-                setProjects(JSON.parse(savedProjects));
-            } catch {
-                setProjects(initialProjects);
-            }
-        } else {
-            localStorage.setItem(
-                PROJECTS_KEY,
-                JSON.stringify(initialProjects)
+        const handleProjectsUpdated = () => {
+            loadProjects();
+        };
+
+        window.addEventListener(
+            "ablespace-projects-updated",
+            handleProjectsUpdated
+        );
+
+        return () => {
+            window.removeEventListener(
+                "ablespace-projects-updated",
+                handleProjectsUpdated
             );
-        }
+        };
     }, []);
     const [leadFilter, setLeadFilter] = useState("All");
     const [dueDateFilter, setDueDateFilter] = useState("All");
@@ -422,76 +447,68 @@ export default function ProjectsPage() {
        Add project
     -------------------------------- */
 
-    const saveProject = () => {
+    const saveProject = async () => {
         if (!newProject.name.trim()) {
             return;
         }
 
-        if (editingProjectId !== null) {
-            setProjects((current) => {
-                const updatedProjects = current.map((project) =>
-                    project.id === editingProjectId
-                        ? {
-                            ...project,
-                            name: newProject.name.trim(),
-                            priority: newProject.priority,
-                            lead: newProject.lead,
-                            dueDate:
-                                newProject.dueDate ||
-                                project.dueDate,
-                        }
-                        : project
-                );
-
-                localStorage.setItem(
-                    PROJECTS_KEY,
-                    JSON.stringify(updatedProjects)
-                );
-
-                window.dispatchEvent(
-                    new Event("ablespace-projects-updated")
-                );
-
-                return updatedProjects;
-            });
-        } else {
-            const project: Project = {
-                id: Date.now(),
+        try {
+            const payload = {
                 name: newProject.name.trim(),
+                description: "",
                 priority: newProject.priority,
                 lead: newProject.lead,
-                dueDate:
-                    newProject.dueDate || "18 Sep 2026",
+                dueDate: newProject.dueDate || "18 Sep 2026",
+                members: [newProject.lead],
             };
 
-            setProjects((current) => {
-                const updatedProjects = [
-                    ...current,
-                    project,
-                ];
+            const url =
+                editingProjectId !== null
+                    ? `${API_URL}/projects/${editingProjectId}`
+                    : `${API_URL}/projects`;
 
-                localStorage.setItem(
-                    PROJECTS_KEY,
-                    JSON.stringify(updatedProjects)
-                );
+            const method =
+                editingProjectId !== null ? "PATCH" : "POST";
 
-                window.dispatchEvent(
-                    new Event("ablespace-projects-updated")
-                );
-
-                return updatedProjects;
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                throw new Error(
+                    errorData?.message?.join?.(", ") ||
+                    "Failed to save project"
+                );
+            }
+
+            await loadProjects();
+
+            window.dispatchEvent(
+                new Event("ablespace-projects-updated")
+            );
+
+            setNewProject({
+                name: "",
+                priority: "High",
+                lead: "Admin",
+                dueDate: "",
+            });
+
+            setEditingProjectId(null);
+            setShowAddProject(false);
+        } catch (error) {
+            console.error("Failed to save project:", error);
+            alert(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to save project"
+            );
         }
-
-        setNewProject({
-            name: "",
-            priority: "High",
-            lead: "Admin",
-            dueDate: "",
-        });
-
-        setEditingProjectId(null);
-        setShowAddProject(false);
     };
 
     const handleEditProject = (project: Project) => {
@@ -505,24 +522,40 @@ export default function ProjectsPage() {
         setShowAddProject(true);
     };
 
-    const handleDeleteProject = (projectId: number) => {
-        setProjects((current) => {
-            const updatedProjects = current.filter(
-                (project) => project.id !== projectId
+    const handleDeleteProject = async (projectId: number) => {
+        try {
+            const response = await fetch(
+                `${API_URL}/projects/${projectId}`,
+                {
+                    method: "DELETE",
+                }
             );
 
-            localStorage.setItem(
-                PROJECTS_KEY,
-                JSON.stringify(updatedProjects)
-            );
+            if (!response.ok) {
+                throw new Error("Failed to delete project");
+            }
+
+            await loadProjects();
 
             window.dispatchEvent(
                 new Event("ablespace-projects-updated")
             );
-
-            return updatedProjects;
-        });
+        } catch (error) {
+            console.error("Failed to delete project:", error);
+            alert("Failed to delete project");
+        }
     };
+
+
+    if (projectsLoading) {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center">
+                <span className="text-[11px] text-gray-500">
+                    Loading...
+                </span>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white text-gray-900">

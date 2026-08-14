@@ -14,13 +14,14 @@ import {
 type Project = {
     id: number;
     name: string;
+    description: string;
     priority: "High" | "Medium" | "Low";
     lead: string;
     dueDate: string;
-    members?: string;
+    members: string[];
 };
 
-const PROJECTS_KEY = "ablespace-projects";
+const API_URL = "http://localhost:4000";
 
 const defaultProjects: Project[] = [
     {
@@ -52,45 +53,43 @@ const defaultProjects: Project[] = [
 export default function ProjectDetailPage() {
     const params = useParams();
 
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [project, setProject] = useState<Project | null>(null);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    const projectId = Number(params.id);
 
     useEffect(() => {
-        const loadProjects = () => {
-            const savedProjects =
-                localStorage.getItem(PROJECTS_KEY);
-
-            if (savedProjects) {
-                try {
-                    const parsedProjects: Project[] =
-                        JSON.parse(savedProjects);
-
-                    setProjects(parsedProjects);
-                } catch {
-                    setProjects(defaultProjects);
-                }
-            } else {
-                setProjects(defaultProjects);
-
-                localStorage.setItem(
-                    PROJECTS_KEY,
-                    JSON.stringify(defaultProjects)
-                );
-            }
-
+        if (!Number.isFinite(projectId)) {
             setLoading(false);
+            return;
+        }
+
+        const loadProject = async () => {
+            try {
+                const response = await fetch(
+                    `${API_URL}/projects/${projectId}`,
+                    { cache: "no-store" }
+                );
+
+                if (!response.ok) {
+                    throw new Error("Project not found");
+                }
+
+                const data: Project = await response.json();
+                setProject(data);
+            } catch (error) {
+                console.error("Failed to load project:", error);
+                setProject(null);
+            } finally {
+                setLoading(false);
+            }
         };
 
-        loadProjects();
+        loadProject();
 
         const handleProjectsUpdated = () => {
-            loadProjects();
-        };
-
-        const handleStorageChange = (event: StorageEvent) => {
-            if (event.key === PROJECTS_KEY) {
-                loadProjects();
-            }
+            loadProject();
         };
 
         window.addEventListener(
@@ -98,23 +97,14 @@ export default function ProjectDetailPage() {
             handleProjectsUpdated
         );
 
-        window.addEventListener(
-            "storage",
-            handleStorageChange
-        );
-
         return () => {
             window.removeEventListener(
                 "ablespace-projects-updated",
                 handleProjectsUpdated
             );
-
-            window.removeEventListener(
-                "storage",
-                handleStorageChange
-            );
         };
-    }, []);
+    }, [projectId]);
+
 
     if (loading) {
         return (
@@ -125,12 +115,6 @@ export default function ProjectDetailPage() {
             </div>
         );
     }
-
-    const projectId = Number(params.id);
-
-    const project = projects.find(
-        (item) => item.id === projectId
-    );
 
     if (!project) {
         return (
@@ -259,7 +243,6 @@ export default function ProjectDetailPage() {
                     {/* PROJECT DETAILS */}
                     <section className="px-5 py-5">
                         <div className="border border-[#E5E5E5] rounded-md bg-white">
-
                             <div className="px-4 py-3 border-b border-[#E5E5E5]">
                                 <h1 className="text-[14px] font-semibold text-[#111111]">
                                     {project.name}
@@ -271,66 +254,126 @@ export default function ProjectDetailPage() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-x-8 gap-y-0 px-4">
-
-                                {/* Priority */}
                                 <div className="py-3 border-b border-[#E5E5E5]">
-                                    <p className="text-[9px] text-[#777777]">
-                                        Priority
-                                    </p>
-
-                                    <p
-                                        className={`mt-1 text-[10px] font-medium ${
-                                            project.priority === "High"
-                                                ? "text-red-500"
-                                                : project.priority === "Medium"
-                                                ? "text-orange-500"
-                                                : "text-gray-500"
-                                        }`}
+                                    <p className="text-[9px] text-[#777777]">Priority</p>
+                                    <select
+                                        value={project.priority}
+                                        onChange={(event) =>
+                                            setProject({
+                                                ...project,
+                                                priority: event.target.value as Project["priority"],
+                                            })
+                                        }
+                                        className="mt-1 w-full h-8 border border-[#E5E5E5] rounded-md px-2 text-[10px] outline-none"
                                     >
-                                        {project.priority}
-                                    </p>
+                                        <option value="High">High</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
                                 </div>
 
-                                {/* Lead */}
                                 <div className="py-3 border-b border-[#E5E5E5]">
-                                    <p className="text-[9px] text-[#777777]">
-                                        Lead
-                                    </p>
+                                    <p className="text-[9px] text-[#777777]">Lead</p>
+                                    <select
+                                        value={project.lead}
+                                        onChange={(event) =>
+                                            setProject({
+                                                ...project,
+                                                lead: event.target.value,
+                                            })
+                                        }
+                                        className="mt-1 w-full h-8 border border-[#E5E5E5] rounded-md px-2 text-[10px] outline-none"
+                                    >
+                                        <option>Admin</option>
+                                        <option>Designer</option>
+                                        <option>Developer</option>
+                                        <option>QA Team</option>
+                                        <option>CN</option>
+                                    </select>
+                                </div>
 
+                                <div className="py-3 border-b border-[#E5E5E5]">
+                                    <p className="text-[9px] text-[#777777]">Due Date</p>
+                                    <input
+                                        type="date"
+                                        value={
+                                            /^\d{4}-\d{2}-\d{2}$/.test(project.dueDate)
+                                                ? project.dueDate
+                                                : ""
+                                        }
+                                        onChange={(event) =>
+                                            setProject({
+                                                ...project,
+                                                dueDate: event.target.value,
+                                            })
+                                        }
+                                        className="mt-1 w-full h-8 border border-[#E5E5E5] rounded-md px-2 text-[10px] outline-none"
+                                    />
+                                </div>
+
+                                <div className="py-3 border-b border-[#E5E5E5]">
+                                    <p className="text-[9px] text-[#777777]">Members</p>
                                     <p className="mt-1 text-[10px] font-medium text-[#222222]">
-                                        {project.lead}
+                                        {project.members?.join(", ") || project.lead || "Not assigned"}
                                     </p>
                                 </div>
 
-                                {/* Due Date */}
-                                <div className="py-3 border-b border-[#E5E5E5]">
-                                    <p className="text-[9px] text-[#777777]">
-                                        Due Date
-                                    </p>
-
-                                    <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-[#222222]">
-                                        <CalendarDays
-                                            size={10}
-                                            className="text-[#777777]"
-                                        />
-
-                                        {project.dueDate}
+                                <div className="col-span-2 py-3">
+                                    <p className="text-[9px] text-[#777777]">Description</p>
+                                    <p className="mt-1 text-[10px] text-[#333333]">
+                                        {project.description || "No description"}
                                     </p>
                                 </div>
-
-                                {/* Members */}
-                                <div className="py-3 border-b border-[#E5E5E5]">
-                                    <p className="text-[9px] text-[#777777]">
-                                        Members
-                                    </p>
-
-                                    <p className="mt-1 text-[10px] font-medium text-[#222222]">
-                                        {project.members || project.lead || "Not assigned"}
-                                    </p>
-                                </div>
-
                             </div>
 
+                            <div className="px-4 py-3 border-t border-[#E5E5E5] flex justify-end">
+                                <button
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={async () => {
+                                        try {
+                                            setSaving(true);
+
+                                            const response = await fetch(
+                                                `${API_URL}/projects/${project.id}`,
+                                                {
+                                                    method: "PATCH",
+                                                    headers: {
+                                                        "Content-Type": "application/json",
+                                                    },
+                                                    body: JSON.stringify({
+                                                        name: project.name,
+                                                        description: project.description,
+                                                        priority: project.priority,
+                                                        lead: project.lead,
+                                                        dueDate: project.dueDate,
+                                                        members: project.members,
+                                                    }),
+                                                }
+                                            );
+
+                                            if (!response.ok) {
+                                                throw new Error("Failed to save project");
+                                            }
+
+                                            const updated = await response.json();
+                                            setProject(updated);
+
+                                            window.dispatchEvent(
+                                                new Event("ablespace-projects-updated")
+                                            );
+                                        } catch (error) {
+                                            console.error(error);
+                                            alert("Failed to save project");
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    }}
+                                    className="h-8 px-3 bg-black text-white rounded-md text-[9px] hover:bg-gray-800 disabled:opacity-50"
+                                >
+                                    {saving ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
                         </div>
                     </section>
 
