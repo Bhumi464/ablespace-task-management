@@ -16,6 +16,8 @@ import {
   Settings,
   PanelLeft,
   Check,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 import { tasks } from "@/data/tasks";
@@ -110,8 +112,8 @@ export default function TasksPage() {
 
   // Keep task cards synced with saved edits from the task details page.
   const [taskList, setTaskList] =
-  useState<BackendTask[]>(tasks);
-const [tasksLoading, setTasksLoading] = useState(true);
+    useState<BackendTask[]>(tasks);
+  const [tasksLoading, setTasksLoading] = useState(true);
 
   const [addTaskOpen, setAddTaskOpen] = useState(false);
 
@@ -216,49 +218,49 @@ const [tasksLoading, setTasksLoading] = useState(true);
     setColorModeOpen(false);
   };
   useEffect(() => {
-  const loadTasks = async () => {
-    try {
-      setTasksLoading(true);
+    const loadTasks = async () => {
+      try {
+        setTasksLoading(true);
 
-      const response = await fetch(`${API_URL}/tasks`);
+        const response = await fetch(`${API_URL}/tasks`);
 
-      if (!response.ok) {
-        throw new Error("Failed to load tasks");
+        if (!response.ok) {
+          throw new Error("Failed to load tasks");
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+          const normalizedTasks: BackendTask[] =
+            data.map((task) => ({
+              id: task.id,
+              title: task.title ?? "",
+              description: task.description ?? "",
+              status: task.status ?? "To Do",
+              priority: task.priority ?? "Medium",
+              member: task.member ?? "Admin",
+              dueDate: task.dueDate ?? "",
+              labels: Array.isArray(task.labels)
+                ? task.labels
+                : [],
+              team: task.team ?? "Development",
+              reporter: task.reporter,
+            }));
+
+          setTaskList(normalizedTasks);
+        }
+      } catch (error) {
+        console.error("Failed to load tasks:", error);
+
+        // Keep the existing tasks as a fallback
+        setTaskList(tasks);
+      } finally {
+        setTasksLoading(false);
       }
+    };
 
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-  const normalizedTasks: BackendTask[] =
-    data.map((task) => ({
-      id: task.id,
-      title: task.title ?? "",
-      description: task.description ?? "",
-      status: task.status ?? "To Do",
-      priority: task.priority ?? "Medium",
-      member: task.member ?? "Admin",
-      dueDate: task.dueDate ?? "",
-      labels: Array.isArray(task.labels)
-        ? task.labels
-        : [],
-      team: task.team ?? "Development",
-      reporter: task.reporter,
-    }));
-
-  setTaskList(normalizedTasks);
-}
-    } catch (error) {
-      console.error("Failed to load tasks:", error);
-
-      // Keep the existing tasks as a fallback
-      setTaskList(tasks);
-    } finally {
-      setTasksLoading(false);
-    }
-  };
-
-  loadTasks();
-}, []);
+    loadTasks();
+  }, []);
 
   useEffect(() => {
     const loadSavedTasks = () => {
@@ -612,92 +614,92 @@ const [tasksLoading, setTasksLoading] = useState(true);
   };
 
   const handleAddTask = async () => {
-  if (!newTask.title.trim()) {
-    return;
-  }
-
-  const taskData = {
-    title: newTask.title.trim(),
-    description:
-      newTask.description.trim() || "Add details",
-    status: newTask.status,
-    priority: newTask.priority,
-    member: newTask.member,
-    dueDate: newTask.dueDate || "29 Jul",
-    labels: newTask.labels
-      ? newTask.labels
-          .split(",")
-          .map((label) => label.trim())
-          .filter(Boolean)
-      : [],
-    team: "Development",
-  };
-
-  try {
-    const response = await fetch(`${API_URL}/tasks`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(taskData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-
-      console.error("Create task failed:", errorData);
-
-      alert("Failed to create task.");
+    if (!newTask.title.trim()) {
       return;
     }
 
-    const createdTask = await response.json();
+    const taskData = {
+      title: newTask.title.trim(),
+      description:
+        newTask.description.trim() || "Add details",
+      status: newTask.status,
+      priority: newTask.priority,
+      member: newTask.member,
+      dueDate: newTask.dueDate || "29 Jul",
+      labels: newTask.labels
+        ? newTask.labels
+          .split(",")
+          .map((label) => label.trim())
+          .filter(Boolean)
+        : [],
+      team: "Development",
+    };
 
-    setTaskList((previous) => [
-      ...previous,
-      createdTask,
-    ]);
+    try {
+      const response = await fetch(`${API_URL}/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(taskData),
+      });
 
-    setNewTask({
-      title: "",
-      description: "",
-      status: "To Do",
-      priority: "High",
-      member: "Admin",
-      dueDate: "",
-      labels: "",
-    });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
 
-    setAddTaskOpen(false);
-  } catch (error) {
-    console.error("Failed to create task:", error);
-    alert("Unable to connect to the backend.");
-  }
-};
+        console.error("Create task failed:", errorData);
+
+        alert("Failed to create task.");
+        return;
+      }
+
+      const createdTask = await response.json();
+
+      setTaskList((previous) => [
+        ...previous,
+        createdTask,
+      ]);
+
+      setNewTask({
+        title: "",
+        description: "",
+        status: "To Do",
+        priority: "High",
+        member: "Admin",
+        dueDate: "",
+        labels: "",
+      });
+
+      setAddTaskOpen(false);
+    } catch (error) {
+      console.error("Failed to create task:", error);
+      alert("Unable to connect to the backend.");
+    }
+  };
 
   const handleDeleteTask = async (taskId: string | number) => {
-  try {
-    const response = await fetch(
-      `${API_URL}/tasks/${taskId}`,
-      {
-        method: "DELETE",
+    try {
+      const response = await fetch(
+        `${API_URL}/tasks/${taskId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete task");
       }
-    );
 
-    if (!response.ok) {
-      throw new Error("Failed to delete task");
+      setTaskList((previous) =>
+        previous.filter(
+          (item) => String(item.id) !== String(taskId)
+        )
+      );
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+      alert("Unable to delete task.");
     }
-
-    setTaskList((previous) =>
-      previous.filter(
-        (item) => String(item.id) !== String(taskId)
-      )
-    );
-  } catch (error) {
-    console.error("Failed to delete task:", error);
-    alert("Unable to delete task.");
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -708,194 +710,202 @@ const [tasksLoading, setTasksLoading] = useState(true);
         <aside className="w-[155px] shrink-0 border-r border-[#E5E5E5] bg-white">
 
           {/* Dexter Profile */}
-          {/* Dexter Profile */}
-          <div
-            ref={profileRef}
-            className="relative h-[55px] border-b border-[#E5E5E5]"
-          >
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setProfileOpen((prev) => !prev);
-                setThemeOpen(false);
-                setColorModeOpen(false);
-              }}
-              className="
-      w-full
-      h-full
-      px-4
-      flex
-      items-center
-      justify-between
-      hover:bg-[#F8F8F8]
-    "
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
-                  <span className="text-[8px] font-medium text-white">
-                    {profile.fullName.charAt(0).toUpperCase() || "D"}
-                  </span>
-                </div>
+                    <div
+                        ref={profileRef}
+                        className="relative h-[55px] px-4 flex items-center border-b border-[#E5E5E5]"
+                    >
+                        <button
+                            type="button"
+                            onClick={(event) => {
+                                event.stopPropagation();
 
-                <span className="text-[11px] font-semibold text-[#111111]">
-                  {profile.fullName}
-                </span>
-              </div>
-
-              <ChevronDown
-                size={11}
-                strokeWidth={1.5}
-                className={`text-[#555555] transition-transform ${profileOpen ? "rotate-180" : ""
-                  }`}
-              />
-            </button>
-
-            {profileOpen && (
-              <div
-                className="
-        absolute
-        left-[6px]
-        top-[43px]
-        z-[9999]
-        w-[144px]
-        rounded-md
-        border
-        border-[#E5E5E5]
-        bg-white
-        shadow-[0_4px_12px_rgba(0,0,0,0.12)]
-        overflow-visible
-      "
-              >
-                {/* Profile */}
-                <div className="px-3 pt-3 pb-3">
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
-                      <span className="text-[12px] font-medium text-white">
-                        D
-                      </span>
-                    </div>
-
-                    <p className="text-[10px] font-medium text-[#111111] mt-1">
-                      {profile.fullName}
-                    </p>
-
-                    <p className="text-[8px] text-[#777777]">
-                      {profile.email}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="border-t border-[#EEEEEE]" />
-
-                {/* Change Theme */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setThemeOpen((prev) => !prev);
-                    }}
-                    className="
+                                setProfileOpen((prev) => !prev);
+                                setThemeOpen(false);
+                                setColorModeOpen(false);
+                            }}
+                            className="
             w-full
-            h-[32px]
-            px-3
             flex
             items-center
             justify-between
-            text-[9px]
-            text-[#333333]
+            rounded-md
+            px-1
+            py-1
+            cursor-pointer
             hover:bg-[#F5F5F5]
-          "
-                  >
-                    <span className="flex items-center gap-2">
-                      ☼
-                      <span>Change Theme</span>
-                    </span>
+        "
+                        >
+                            <div className="flex items-center gap-2">
+                                <div className="w-[21px] h-[21px] rounded-full bg-[var(--accent-color)] flex items-center justify-center">
+                                    <span className="text-[8px] font-medium text-white">
+                                        {profile.fullName.charAt(0).toUpperCase() || "D"}
+                                    </span>
+                                </div>
 
-                    <span className="text-[10px]">›</span>
-                  </button>
+                                <span className="text-[11px] font-semibold text-[#111111]">
+                                    {profile.fullName}
+                                </span>
+                            </div>
 
-                  {/* Theme submenu */}
-                  {themeOpen && (
-                    <div
-                      className="
-              absolute
-              left-[142px]
-              top-0
-              z-[10000]
-              w-[100px]
-              rounded-md
-              border
-              border-[#E5E5E5]
-              bg-white
-              shadow-[0_4px_12px_rgba(0,0,0,0.12)]
-              py-1
+                            <ChevronDown
+                                size={11}
+                                strokeWidth={1.5}
+                                className="text-[#555555]"
+                            />
+                        </button>
+
+                        {profileOpen && (
+                            <div
+                                className="
+                absolute
+                left-[6px]
+                top-[50px]
+                z-[9999]
+                w-[144px]
+                rounded-md
+                border
+                border-[#E5E5E5]
+                bg-white
+                shadow-[0_4px_12px_rgba(0,0,0,0.12)]
             "
-                    >
-                      <div className="px-3 py-1 text-[8px] text-[#777777]">
-                        Theme
-                      </div>
+                            >
+                                {/* Profile */}
+                                <div className="px-3 py-3">
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-8 h-8 rounded-full bg-[var(--accent-color)] flex items-center justify-center">
+                                            <span className="text-[12px] font-medium text-white">
+                                                {profile.fullName.charAt(0).toUpperCase() || "D"}
+                                            </span>
+                                        </div>
 
-                      <button
-                        type="button"
-                        onClick={() => changeTheme("light")}
-                        className="
-                w-full
-                h-[28px]
-                px-3
-                flex
-                items-center
-                justify-between
-                text-[9px]
-                text-[#333333]
-                hover:bg-[#F5F5F5]
-              "
-                      >
-                        <span>☼ Light</span>
+                                        <p className="text-[10px] font-medium text-[#111111] mt-1">
+                                            {profile.fullName}
+                                        </p>
 
-                        {theme === "light" && (
-                          <span>✓</span>
-                        )}
-                      </button>
+                                        <p className="text-[8px] text-[#777777]">
+                                            {profile.email}
+                                        </p>
+                                    </div>
+                                </div>
 
-                      <button
-                        type="button"
-                        onClick={() => changeTheme("dark")}
-                        className="
-                w-full
-                h-[28px]
-                px-3
-                flex
-                items-center
-                justify-between
-                text-[9px]
-                text-[#333333]
-                hover:bg-[#F5F5F5]
-              "
-                      >
-                        <span>☾ Dark</span>
+                                <div className="border-t border-[#EEEEEE]" />
 
-                        {theme === "dark" && (
-                          <span>✓</span>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                                {/* Change Theme */}
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setThemeOpen((prev) => !prev);
+                                        }}
+                                        className="
+                        w-full
+                        h-[32px]
+                        px-3
+                        flex
+                        items-center
+                        justify-between
+                        text-[9px]
+                        text-[#333333]
+                        hover:bg-[#F5F5F5]
+                        cursor-pointer
+                    "
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Sun size={11} />
+                                            Change Theme
+                                        </span>
 
-                {/* Color Mode */}
-                {/* Color Mode */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setColorModeOpen((prev) => !prev);
-                      setThemeOpen(false);
-                    }}
-                    className="
+                                        <span>›</span>
+                                    </button>
+
+                                    {/* Theme submenu */}
+                                    {themeOpen && (
+                                        <div
+                                            className="
+                            absolute
+                            left-[140px]
+                            top-0
+                            z-[10000]
+                            w-[105px]
+                            rounded-md
+                            border
+                            border-[#E5E5E5]
+                            bg-white
+                            shadow-[0_4px_12px_rgba(0,0,0,0.12)]
+                            py-1
+                        "
+                                        >
+                                            <p className="px-3 py-1 text-[8px] text-[#777777]">
+                                                Theme
+                                            </p>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => changeTheme("light")}
+                                                className="
+        w-full
+        px-3
+        py-1.5
+        flex
+        items-center
+        justify-between
+        text-[9px]
+        text-[#333333]
+        hover:bg-[#F5F5F5]
+        cursor-pointer
+    "
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <Sun size={10} />
+                                                    Light
+                                                </span>
+
+                                                {theme === "light" && (
+                                                    <span>✓</span>
+                                                )}
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => changeTheme("dark")}
+                                                className="
+        w-full
+        px-3
+        py-1.5
+        flex
+        items-center
+        justify-between
+        text-[9px]
+        text-[#333333]
+        hover:bg-[#F5F5F5]
+        cursor-pointer
+    "
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <Moon size={10} />
+                                                    Dark
+                                                </span>
+
+                                                {theme === "dark" && (
+                                                    <span>✓</span>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Color Mode */}
+                                {/* Color Mode */}
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setColorModeOpen((prev) => !prev);
+                                            setThemeOpen(false);
+                                        }}
+                                        className="
       w-full
       h-[32px]
       px-3
@@ -907,22 +917,22 @@ const [tasksLoading, setTasksLoading] = useState(true);
       hover:bg-[#F5F5F5]
       cursor-pointer
     "
-                  >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="w-[7px] h-[7px] rounded-[1px]"
-                        style={{ backgroundColor: "var(--accent-color)" }}
-                      />
-                      <span>Color Mode</span>
-                    </span>
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span
+                                                className="w-[7px] h-[7px] rounded-[1px]"
+                                                style={{ backgroundColor: "var(--accent-color)" }}
+                                            />
+                                            <span>Color Mode</span>
+                                        </span>
 
-                    <span className="text-[10px]">›</span>
-                  </button>
+                                        <span className="text-[10px]">›</span>
+                                    </button>
 
-                  {/* Color Mode submenu */}
-                  {colorModeOpen && (
-                    <div
-                      className="
+                                    {/* Color Mode submenu */}
+                                    {colorModeOpen && (
+                                        <div
+                                            className="
         absolute
         left-[140px]
         top-0
@@ -935,76 +945,81 @@ const [tasksLoading, setTasksLoading] = useState(true);
         shadow-[0_4px_12px_rgba(0,0,0,0.12)]
         py-1
       "
-                    >
-                      <p className="px-3 py-1 text-[8px] text-[#777777]">
-                        Color Mode
-                      </p>
-                      {
-                        [
-                          { key: "amber", label: "Amber", color: "#f59e0b" },
-                          { key: "blue", label: "Blue", color: "#3b82f6" },
-                          { key: "pink", label: "Pink", color: "#ec4899" },
-                          { key: "rose", label: "Rose", color: "#f43f5e" },
-                          { key: "emerald", label: "Emerald", color: "#10b981" },
-                          { key: "black", label: "Black", color: "#111111" },
-                          { key: "purple", label: "Purple", color: "#ac05fa" },
-                        ].map((item) => (
-                          <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => {
-                              changeColorMode(
-                                item.key as
-                                | "amber"
-                                | "blue"
-                                | "pink"
-                                | "rose"
-                                | "emerald"
-                                | "black"
-                                | "purple"
-                              );
-                            }}
-                            className="w-full h-[28px] px-3 flex items-center justify-between text-left text-[9px] hover:bg-[#F5F5F5]"
-                          >
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="w-[8px] h-[8px] rounded-[1px]"
-                                style={{
-                                  backgroundColor: item.color,
-                                }}
-                              />
+                                        >
+                                            <p className="px-3 py-1 text-[8px] text-[#777777]">
+                                                Color Mode
+                                            </p>
 
-                              {item.label}
-                            </span>
+                                            {[
+                                                { key: "amber", label: "Amber", color: "#f59e0b" },
+                                                { key: "blue", label: "Blue", color: "#3b82f6" },
+                                                { key: "pink", label: "Pink", color: "#ec4899" },
+                                                { key: "rose", label: "Rose", color: "#f43f5e" },
+                                                { key: "emerald", label: "Emerald", color: "#10b981" },
+                                                { key: "black", label: "Black", color: "#111111" },
+                                                { key: "purple", label: "Purple", color: "#ac05fa" },
+                                            ].map((item) => (
+                                                <button
+                                                    key={item.key}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        changeColorMode(
+                                                            item.key as
+                                                            | "amber"
+                                                            | "blue"
+                                                            | "pink"
+                                                            | "rose"
+                                                            | "emerald"
+                                                            | "black"
+                                                            | "purple"
+                                                        )
+                                                    }
+                                                    className="
+            w-full
+            h-[28px]
+            px-3
+            flex
+            items-center
+            justify-between
+            text-[9px]
+            text-[#333333]
+            hover:bg-[#F5F5F5]
+            cursor-pointer
+          "
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        <span
+                                                            className="w-[8px] h-[8px] rounded-[1px]"
+                                                            style={{ backgroundColor: item.color }}
+                                                        />
+                                                        {item.label}
+                                                    </span>
 
-                            {colorMode === item.key && (
-                              <Check size={10} />
-                            )}
-                          </button>
-                        ))
-                      }
+                                                    {colorMode === item.key && <span>✓</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        window.location.href = "/settings";
+                                    }}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
+                                >
+                                    <Settings
+                                        size={12}
+                                        strokeWidth={1.5}
+                                        className="text-[#555555]"
+                                    />
+
+                                    <span>Settings</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = "/settings";
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-[10px] text-[#333333] hover:bg-[#F5F5F5]"
-                >
-                  <Settings
-                    size={12}
-                    strokeWidth={1.5}
-                    className="text-[#555555]"
-                  />
-
-                  <span>Settings</span>
-                </button>
-              </div>
-            )}
-          </div>
 
           {/* Navigation */}
           <div className="px-3 pt-4">
