@@ -84,7 +84,7 @@ html.dark .text-\[\#777777\] {
   color: #999999 !important;
 }
 
-/* Tailwind gray utilities used by the task detail screen */
+/* Updated frontend deployment configuration */
 html.dark .text-gray-900,
 html.dark .text-black {
   color: #f5f5f5 !important;
